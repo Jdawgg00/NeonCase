@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Surfaces */
+  --gc-graphite-950: #0a0c11;
+  --gc-graphite-900: #12151c;
+  --gc-graphite-800: #1b1f29;
+  --gc-steel-700: #2a2f3c;
+
+  /* Text */
+  --gc-text: #e7e9ee;
+  --gc-text-muted: #8a90a0;
+
+  /* Rarity */
+  --gc-common: #6b7280;
+  --gc-uncommon: #34d5c9;
+  --gc-rare: #8b6bff;
+  --gc-epic: #e84fa0;
+  --gc-special: #f0b429;
+
+  /* Radii / focus */
+  --gc-radius-sm: 4px;
+  --gc-radius-md: 8px;
+  --gc-focus-ring: 0 0 0 2px var(--gc-graphite-950), 0 0 0 4px var(--gc-uncommon);
+}
+
+html {
+  background-color: var(--gc-graphite-950);
+  color: var(--gc-text);
+}
+
+/* Visible keyboard focus everywhere — never suppressed */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--gc-focus-ring);
+}
+
+/* Respect prefers-reduced-motion globally; components must not rely on
+   animation to convey the drop result (see CaseOpening spec requirement). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.rarity-common   { color: var(--gc-common); }
+.rarity-uncommon { color: var(--gc-uncommon); }
+.rarity-rare     { color: var(--gc-rare); }
+.rarity-epic     { color: var(--gc-epic); }
+.rarity-special  { color: var(--gc-special); }
+
+/* Rarity-tinted card panels (icon slot + card background), used by the
+   opening reel, case list, and inventory so higher tiers visibly stand out
+   the way case-opening UIs are expected to. */
+.rarity-panel-common {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--gc-common) 14%, var(--gc-graphite-800)), var(--gc-graphite-800) 70%);
+  border-color: color-mix(in srgb, var(--gc-common) 45%, var(--gc-steel-700));
+}
+.rarity-panel-uncommon {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--gc-uncommon) 16%, var(--gc-graphite-800)), var(--gc-graphite-800) 70%);
+  border-color: color-mix(in srgb, var(--gc-uncommon) 50%, var(--gc-steel-700));
+}
+.rarity-panel-rare {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--gc-rare) 18%, var(--gc-graphite-800)), var(--gc-graphite-800) 70%);
+  border-color: color-mix(in srgb, var(--gc-rare) 55%, var(--gc-steel-700));
+}
+.rarity-panel-epic {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--gc-epic) 20%, var(--gc-graphite-800)), var(--gc-graphite-800) 70%);
+  border-color: color-mix(in srgb, var(--gc-epic) 60%, var(--gc-steel-700));
+  box-shadow: 0 0 18px -6px var(--gc-epic);
+}
+.rarity-panel-special {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--gc-special) 24%, var(--gc-graphite-800)), var(--gc-graphite-800) 70%);
+  border-color: color-mix(in srgb, var(--gc-special) 65%, var(--gc-steel-700));
+  box-shadow: 0 0 22px -6px var(--gc-special);
+}

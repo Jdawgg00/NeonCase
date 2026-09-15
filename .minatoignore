@@ -1,0 +1,14 @@
+node_modules
+.nuxt
+.output
+.env
+.env.*
+dist
+*.log
+.DS_Store
+/prisma/migrations/**/migration.sql.bak
+test-results
+playwright-report
+coverage
+.vscode
+.git

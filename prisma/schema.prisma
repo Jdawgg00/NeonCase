@@ -1,0 +1,496 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =========================================================================
+// AUTH (Auth.js / @sidebase/nuxt-auth via @auth/prisma-adapter)
+// =========================================================================
+
+enum Role {
+  USER
+  MODERATOR
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+model User {
+  id            String     @id @default(cuid())
+  email         String     @unique
+  emailVerified DateTime?
+  username      String     @unique
+  image         String?
+  role          Role       @default(USER)
+  status        UserStatus @default(ACTIVE)
+  publicProfile Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+
+  wallet             Wallet?
+  inventoryItems     InventoryItem[]
+  caseOpenings       CaseOpening[]
+  listingsAsSeller   MarketListing[]     @relation("SellerListings")
+  salesAsBuyer       MarketSale[]        @relation("BuyerSales")
+  salesAsSeller      MarketSale[]        @relation("SellerSales")
+  dailyRewardClaims  DailyRewardClaim[]
+  userAchievements   UserAchievement[]
+  userMissions       UserMissionProgress[]
+  notifications      Notification[]
+  auditLogsAsActor   AuditLog[]          @relation("ActorAuditLogs")
+  auditLogsAsTarget  AuditLog[]          @relation("TargetAuditLogs")
+
+  @@index([role])
+  @@index([status])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// =========================================================================
+// WALLET / LEDGER  — credits are always integers, never floats
+// =========================================================================
+
+enum WalletTransactionType {
+  STARTING_BALANCE
+  DAILY_BONUS
+  CASE_PURCHASE
+  KEY_PURCHASE
+  MARKET_FEE
+  LISTING_FEE
+  MARKET_SALE_CREDIT
+  MARKET_PURCHASE_DEBIT
+  QUICK_SELL_CREDIT
+  MISSION_REWARD
+  ACHIEVEMENT_REWARD
+  EVENT_REWARD
+  ADMIN_ADJUSTMENT_CREDIT
+  ADMIN_ADJUSTMENT_DEBIT
+  CRAFTING
+  COSMETIC_PURCHASE
+  REROLL
+}
+
+model Wallet {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  balance   Int      @default(0) // integer credits — never Float
+  version   Int      @default(0) // optimistic concurrency token
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions WalletTransaction[]
+
+}
+
+model WalletTransaction {
+  id              String                @id @default(cuid())
+  walletId        String
+  type            WalletTransactionType
+  amount          Int // positive = credit, negative = debit
+  balanceBefore   Int
+  balanceAfter    Int
+  referenceType   String? // e.g. "CASE_OPENING", "MARKET_SALE", "ADMIN"
+  referenceId     String?
+  idempotencyKey  String                @unique
+  metadata        Json?
+  createdAt       DateTime              @default(now())
+
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([walletId, createdAt])
+  @@index([type])
+}
+
+model DailyRewardClaim {
+  id         String   @id @default(cuid())
+  userId     String
+  rewardDate DateTime @db.Date
+  amount     Int
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, rewardDate]) // one claim per user per day, enforced in the DB
+}
+
+// =========================================================================
+// CASES / DROP SYSTEM — configurable integer weights, versioned
+// =========================================================================
+
+enum CaseStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+model CaseDefinition {
+  id          String     @id @default(cuid())
+  slug        String     @unique
+  name        String
+  description String     @db.Text
+  imageUrl    String?
+  casePrice   Int
+  keyPrice    Int? // null = no separate key required
+  status      CaseStatus @default(DRAFT)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  versions CaseVersion[]
+  openings CaseOpening[]
+
+  @@index([status])
+  @@index([slug])
+}
+
+model CaseVersion {
+  id           String    @id @default(cuid())
+  caseId       String
+  version      Int
+  totalWeight  Int // sum of all CaseDrop.weight in this version — must be validated on publish
+  publishedAt  DateTime?
+  createdBy    String
+  createdAt    DateTime  @default(now())
+
+  case     CaseDefinition @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  drops    CaseDrop[]
+  openings CaseOpening[]
+
+  @@unique([caseId, version])
+  @@index([caseId, publishedAt])
+}
+
+model CaseDrop {
+  id              String  @id @default(cuid())
+  caseVersionId   String
+  skinDefinitionId String
+  weight          Int // integer weight — never a float probability
+  enabled         Boolean @default(true)
+
+  caseVersion    CaseVersion    @relation(fields: [caseVersionId], references: [id], onDelete: Cascade)
+  skinDefinition SkinDefinition @relation(fields: [skinDefinitionId], references: [id])
+
+  @@unique([caseVersionId, skinDefinitionId])
+  @@index([caseVersionId])
+}
+
+enum Rarity {
+  COMMON
+  UNCOMMON
+  RARE
+  EPIC
+  SPECIAL
+}
+
+enum WeaponCategory {
+  RIFLES
+  PRECISION
+  SIDEARMS
+  COMPACT
+  HEAVY
+  BLADES
+}
+
+model SkinDefinition {
+  id                 String         @id @default(cuid())
+  slug               String         @unique
+  name               String
+  weaponCategory     WeaponCategory
+  rarity             Rarity
+  imageUrl           String?
+  baseReferenceValue Int // internal, cosmetic market reference value — not real currency
+  minFloat           Float          @default(0)
+  maxFloat           Float          @default(1)
+  specialEligible    Boolean        @default(false)
+
+  // Real-world Steam Community Market reference price — display only, never
+  // used for credits/odds/economy math. Refreshed periodically by
+  // server/tasks/pricing/refresh.ts. Null until the first refresh runs.
+  steamPriceCents     Int?
+  steamPriceCurrency  String?   @default("NOK")
+  steamVolume         Int?
+  steamPriceUpdatedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  caseDrops      CaseDrop[]
+  inventoryItems InventoryItem[]
+
+  @@index([rarity])
+  @@index([weaponCategory])
+}
+
+// =========================================================================
+// INVENTORY
+// =========================================================================
+
+enum Wear {
+  PRISTINE
+  LIGHTLY_USED
+  FIELD_TESTED
+  WORN
+  BATTLE_SCARRED
+}
+
+enum InventoryItemStatus {
+  AVAILABLE
+  LOCKED
+  LISTED
+  // Terminal — sold instantly via quick-sell. Kept (not deleted) since
+  // CaseOpening.inventoryItemId is a required FK to this row.
+  SOLD
+}
+
+model InventoryItem {
+  id               String               @id @default(cuid())
+  ownerId          String
+  skinDefinitionId String
+  sourceType       String // "CASE_OPENING" | "MARKET_PURCHASE" | "ADMIN_GRANT" | ...
+  sourceId         String?
+  floatValue       Float
+  wear             Wear
+  patternSeed      Int
+  specialVariant   String?
+  favorited        Boolean              @default(false)
+  status           InventoryItemStatus  @default(AVAILABLE)
+  acquiredAt       DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  owner          User            @relation(fields: [ownerId], references: [id])
+  skinDefinition SkinDefinition  @relation(fields: [skinDefinitionId], references: [id])
+  caseOpening    CaseOpening?
+  listings       MarketListing[]
+
+  @@index([ownerId, status])
+  @@index([skinDefinitionId])
+}
+
+model CaseOpening {
+  id              String   @id @default(cuid())
+  userId          String
+  caseId          String
+  caseVersionId   String
+  inventoryItemId String   @unique
+  totalCost       Int
+  randomRoll      Int // the raw integer roll used against the weight table, stored for auditability
+  idempotencyKey  String   @unique
+  createdAt       DateTime @default(now())
+
+  user          User           @relation(fields: [userId], references: [id])
+  case          CaseDefinition @relation(fields: [caseId], references: [id])
+  caseVersion   CaseVersion    @relation(fields: [caseVersionId], references: [id])
+  inventoryItem InventoryItem  @relation(fields: [inventoryItemId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([caseVersionId])
+}
+
+// =========================================================================
+// MARKETPLACE
+// =========================================================================
+
+enum MarketListingStatus {
+  ACTIVE
+  SOLD
+  CANCELLED
+}
+
+model MarketListing {
+  id              String              @id @default(cuid())
+  sellerId        String
+  inventoryItemId String
+  price           Int
+  feeRate         Int // basis points, e.g. 700 = 7.00% — integer, never a float
+  status          MarketListingStatus @default(ACTIVE)
+  listedAt        DateTime            @default(now())
+  soldAt          DateTime?
+  cancelledAt     DateTime?
+
+  seller        User          @relation("SellerListings", fields: [sellerId], references: [id])
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
+  sale          MarketSale?
+
+  @@index([status, price])
+  @@index([sellerId, status])
+  @@index([inventoryItemId])
+}
+
+model MarketSale {
+  id               String   @id @default(cuid())
+  listingId        String   @unique
+  buyerId          String
+  sellerId         String
+  grossAmount      Int
+  feeAmount        Int
+  sellerNetAmount  Int
+  createdAt        DateTime @default(now())
+
+  listing MarketListing @relation(fields: [listingId], references: [id])
+  buyer   User          @relation("BuyerSales", fields: [buyerId], references: [id])
+  seller  User          @relation("SellerSales", fields: [sellerId], references: [id])
+
+  @@index([buyerId])
+  @@index([sellerId])
+  @@index([createdAt])
+}
+
+// =========================================================================
+// SOCIAL: ACHIEVEMENTS / MISSIONS
+// =========================================================================
+
+model Achievement {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String
+  iconUrl     String?
+  rewardCredits Int    @default(0)
+  createdAt   DateTime @default(now())
+
+  userAchievements UserAchievement[]
+}
+
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        String
+  achievementId String
+  unlockedAt    DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievementId], references: [id])
+
+  @@unique([userId, achievementId])
+}
+
+model Mission {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  name          String
+  description   String
+  targetValue   Int
+  rewardCredits Int
+  activeFrom    DateTime?
+  activeTo      DateTime?
+  createdAt     DateTime @default(now())
+
+  userProgress UserMissionProgress[]
+}
+
+model UserMissionProgress {
+  id           String    @id @default(cuid())
+  userId       String
+  missionId    String
+  progress     Int       @default(0)
+  completedAt  DateTime?
+  claimedAt    DateTime?
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mission Mission @relation(fields: [missionId], references: [id])
+
+  @@unique([userId, missionId])
+}
+
+// =========================================================================
+// ADMIN / OBSERVABILITY
+// =========================================================================
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  targetId   String?
+  action     String
+  reason     String?  @db.Text
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  actor  User? @relation("ActorAuditLogs", fields: [actorId], references: [id])
+  target User? @relation("TargetAuditLogs", fields: [targetId], references: [id])
+
+  @@index([actorId, createdAt])
+  @@index([action])
+}
+
+model SystemSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+model EconomySnapshot {
+  id                  String   @id @default(cuid())
+  snapshotDate        DateTime @db.Date @unique
+  totalCreditsInCirculation BigInt
+  creditsCreated24h   BigInt
+  creditsRemoved24h   BigInt
+  activeUsers24h      Int
+  caseOpenings24h     Int
+  marketVolume24h     BigInt
+  createdAt           DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  body      String
+  readAt    DateTime?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+}
