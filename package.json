@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "nuxt dev",
     "build": "nuxt build",
-    "start": "node .output/server/index.mjs",
+    "start": "prisma migrate deploy && tsx prisma/seed.ts && node .output/server/index.mjs",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "prisma generate && nuxt prepare",
