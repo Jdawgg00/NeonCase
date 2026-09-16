@@ -49,7 +49,11 @@ async function toggleLock(item: InventoryItemDTO) {
 
 function openListDialog(item: InventoryItemDTO) {
   listingItem.value = item
-  listingPrice.value = item.skin.baseReferenceValue
+  // Suggest the real Steam value when we have one — baseReferenceValue is
+  // an internal, cosmetic number (see schema.prisma), not a real price, and
+  // defaulting to it here suggested wildly wrong prices (e.g. 250 kr for a
+  // skin Steam prices at 3 kr).
+  listingPrice.value = item.skin.steamPriceCents ? Math.round(item.skin.steamPriceCents / 100) : item.skin.baseReferenceValue
   listingState.value = 'idle'
 }
 

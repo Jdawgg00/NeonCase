@@ -29,6 +29,7 @@ interface AdminSkin {
   weaponCategory: string
   rarity: string
   baseReferenceValue: number
+  steamPriceCents: number | null
 }
 interface AdminUser {
   id: string
@@ -115,6 +116,23 @@ async function syncCasePrices() {
   } catch (err: unknown) {
     syncPricesResult.value = (err as { data?: { statusMessage?: string } })?.data?.statusMessage ?? 'Kunne ikke synke priser.'
     syncPricesState.value = 'error'
+  }
+}
+
+// --- Refresh Steam prices ---
+const refreshPricesState = ref<'idle' | 'running' | 'done' | 'error'>('idle')
+const refreshPricesResult = ref('')
+async function refreshSteamPrices() {
+  refreshPricesState.value = 'running'
+  try {
+    // Fire-and-forget on the server side too (see server/api/admin/pricing/refresh.post.ts) —
+    // a full catalog refresh takes minutes, so this just confirms it started.
+    await $fetch('/api/admin/pricing/refresh', { method: 'POST' })
+    refreshPricesResult.value = 'Startet. Tar noen minutter for hele katalogen — se skin-listen eller case-prisene litt senere.'
+    refreshPricesState.value = 'done'
+  } catch (err: unknown) {
+    refreshPricesResult.value = (err as { data?: { statusMessage?: string } })?.data?.statusMessage ?? 'Kunne ikke starte prisoppdatering.'
+    refreshPricesState.value = 'error'
   }
 }
 
@@ -320,7 +338,15 @@ async function submitSuspend() {
 
     <!-- Skins -->
     <section>
-      <h2 class="mb-3 font-display text-lg">Skins</h2>
+      <div class="mb-3 flex items-center justify-between">
+        <h2 class="font-display text-lg">Skins</h2>
+        <button type="button" class="text-xs hover:underline" :disabled="refreshPricesState === 'running'" @click="refreshSteamPrices">
+          {{ refreshPricesState === 'running' ? 'Starter…' : 'Oppdater Steam-priser' }}
+        </button>
+      </div>
+      <p v-if="refreshPricesResult" class="mb-3 text-xs" :class="refreshPricesState === 'error' ? 'text-rarity-epic' : 'text-rarity-uncommon'">
+        {{ refreshPricesResult }}
+      </p>
       <div class="mb-4 rounded-[var(--gc-radius-md)] border border-[var(--gc-steel-700)] bg-graphite-900 p-4">
         <p class="mb-2 text-sm">Opprett ny skin</p>
         <div class="grid grid-cols-2 gap-2 sm:grid-cols-5">
@@ -339,7 +365,9 @@ async function submitSuspend() {
         </button>
         <p v-if="skinError" class="mt-2 text-xs text-rarity-epic">{{ skinError }}</p>
       </div>
-      <p class="text-xs text-[var(--gc-text-muted)]">{{ skins?.length ?? 0 }} skins totalt.</p>
+      <p class="text-xs text-[var(--gc-text-muted)]">
+        {{ skins?.length ?? 0 }} skins totalt · {{ skins?.filter((s) => !s.steamPriceCents).length ?? 0 }} uten Steam-pris.
+      </p>
     </section>
 
     <!-- Users -->
