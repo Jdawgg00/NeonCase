@@ -79,6 +79,39 @@ export const socialRepository = {
     })
   },
 
+  /** Best/worst single drop (by baseReferenceValue) among today's case openings. */
+  async todaysExtremeDrops(excludeRoles: string[], db: Db = prisma) {
+    const todayStart = new Date()
+    todayStart.setHours(0, 0, 0, 0)
+
+    const openings = await db.caseOpening.findMany({
+      where: { createdAt: { gte: todayStart }, user: { role: { notIn: excludeRoles as never[] } } },
+      select: {
+        id: true,
+        createdAt: true,
+        user: { select: { username: true } },
+        case: { select: { name: true } },
+        inventoryItem: { select: { skinDefinition: { select: { name: true, rarity: true, baseReferenceValue: true } } } },
+      },
+    })
+
+    if (openings.length === 0) return { best: null, worst: null }
+
+    const toDto = (o: (typeof openings)[number]) => ({
+      username: o.user.username,
+      skinName: o.inventoryItem.skinDefinition.name,
+      rarity: o.inventoryItem.skinDefinition.rarity,
+      caseName: o.case.name,
+      value: o.inventoryItem.skinDefinition.baseReferenceValue,
+      createdAt: o.createdAt,
+    })
+
+    const sorted = [...openings].sort(
+      (a, b) => b.inventoryItem.skinDefinition.baseReferenceValue - a.inventoryItem.skinDefinition.baseReferenceValue,
+    )
+    return { best: toDto(sorted[0]!), worst: toDto(sorted[sorted.length - 1]!) }
+  },
+
   // --- Notifications ---
   createNotification(
     data: { userId: string; type: string; title: string; body: string; metadata?: Prisma.InputJsonValue },

@@ -1,9 +1,19 @@
 <script setup lang="ts">
 definePageMeta({ middleware: 'auth' })
 
+interface DropHighlight {
+  username: string
+  skinName: string
+  rarity: string
+  caseName: string
+  value: number
+  createdAt: string
+}
 interface LeaderboardsResponse {
   inventoryValue: { userId: string; username: string; value: number }[]
   caseOpenings: { userId: string; username: string; count: number }[]
+  todaysBestDrop: DropHighlight | null
+  todaysWorstDrop: DropHighlight | null
 }
 
 const { data } = await useFetch<LeaderboardsResponse>('/api/leaderboards')
@@ -12,6 +22,27 @@ const { data } = await useFetch<LeaderboardsResponse>('/api/leaderboards')
 <template>
   <main class="mx-auto max-w-3xl px-6 py-12">
     <h1 class="mb-6 font-display text-2xl">Leaderboards</h1>
+
+    <div v-if="data?.todaysBestDrop || data?.todaysWorstDrop" class="mb-8 grid gap-4 sm:grid-cols-2">
+      <div v-if="data?.todaysBestDrop" class="rounded-[var(--gc-radius-md)] border border-[var(--gc-steel-700)] bg-graphite-900 p-4">
+        <p class="mb-1 text-xs uppercase tracking-wide text-[var(--gc-text-muted)]">Dagens beste drop</p>
+        <p>
+          <span class="text-[var(--gc-text)]">{{ data.todaysBestDrop.username }}</span>
+          <span class="text-[var(--gc-text-muted)]"> fikk </span>
+          <span :class="`rarity-${data.todaysBestDrop.rarity.toLowerCase()}`">{{ data.todaysBestDrop.skinName }}</span>
+        </p>
+        <p class="font-display text-rarity-uncommon">{{ formatKr(data.todaysBestDrop.value) }}</p>
+      </div>
+      <div v-if="data?.todaysWorstDrop" class="rounded-[var(--gc-radius-md)] border border-[var(--gc-steel-700)] bg-graphite-900 p-4">
+        <p class="mb-1 text-xs uppercase tracking-wide text-[var(--gc-text-muted)]">Dagens verste drop</p>
+        <p>
+          <span class="text-[var(--gc-text)]">{{ data.todaysWorstDrop.username }}</span>
+          <span class="text-[var(--gc-text-muted)]"> fikk </span>
+          <span :class="`rarity-${data.todaysWorstDrop.rarity.toLowerCase()}`">{{ data.todaysWorstDrop.skinName }}</span>
+        </p>
+        <p class="font-display text-rarity-epic">{{ formatKr(data.todaysWorstDrop.value) }}</p>
+      </div>
+    </div>
 
     <div class="grid gap-8 sm:grid-cols-2">
       <section>
