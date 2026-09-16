@@ -49,7 +49,7 @@ const links = [
           <NuxtLink :to="`/u/${session.user.username}`" class="text-sm text-[var(--gc-text-muted)] hover:text-[var(--gc-text)]">
             {{ session.user.username }}
           </NuxtLink>
-          <button class="text-sm text-[var(--gc-text-muted)] hover:underline" @click="signOut()">Logg ut</button>
+          <button class="text-sm text-[var(--gc-text-muted)] hover:underline" @click="signOut({ callbackUrl: '/login' })">Logg ut</button>
         </div>
       </div>
     </nav>
