@@ -6,7 +6,6 @@
 
 <template>
   <main class="mx-auto flex min-h-screen max-w-3xl flex-col justify-center gap-6 px-6">
-    <p class="text-sm uppercase tracking-wide text-[var(--gc-text-muted)]">Fase 1 · Grunnlag</p>
     <h1 class="font-display text-4xl leading-tight text-[var(--gc-text)]">
       NeonCrate
     </h1>
