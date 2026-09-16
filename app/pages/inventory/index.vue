@@ -20,7 +20,8 @@ const quickSellState = ref<Record<string, 'idle' | 'confirming' | 'selling' | 'e
 const quickSellError = ref<Record<string, string>>({})
 
 function quickSellPrice(item: InventoryItemDTO) {
-  return Math.floor(item.skin.baseReferenceValue * 0.8)
+  const referenceValue = item.skin.steamPriceCents != null ? Math.round(item.skin.steamPriceCents / 100) : item.skin.baseReferenceValue
+  return Math.floor(referenceValue * 0.8)
 }
 
 async function confirmQuickSell(item: InventoryItemDTO) {

@@ -12,6 +12,15 @@ const MARKET_FEE_BPS = Number(process.env.MARKET_FEE_BPS ?? 700) // basis points
 // deal whenever there's time to wait for one.
 const QUICK_SELL_RATE = 0.8
 
+/**
+ * The real Steam value in whole kr when we have one, otherwise the
+ * internal, cosmetic baseReferenceValue (see schema.prisma) as a fallback
+ * for skins with no successful Steam lookup yet.
+ */
+function referenceValueFor(skin: { baseReferenceValue: number; steamPriceCents: number | null }): number {
+  return skin.steamPriceCents != null ? Math.round(skin.steamPriceCents / 100) : skin.baseReferenceValue
+}
+
 export const marketService = {
   async listItem(input: { sellerId: string; inventoryItemId: string; price: number }) {
     if (!Number.isInteger(input.price) || input.price <= 0) {
@@ -148,7 +157,7 @@ export const marketService = {
     if (item.ownerId !== input.sellerId) throw new NotOwnerError()
     if (item.status !== 'AVAILABLE') throw new ItemNotAvailableError()
 
-    const price = Math.floor(item.skinDefinition.baseReferenceValue * QUICK_SELL_RATE)
+    const price = Math.floor(referenceValueFor(item.skinDefinition) * QUICK_SELL_RATE)
 
     const { transaction } = await withOptimisticRetry(() =>
       prisma.$transaction(async (tx) => {
