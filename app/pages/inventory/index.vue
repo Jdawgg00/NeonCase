@@ -110,8 +110,9 @@ async function submitListing() {
         <p class="line-clamp-1 text-sm text-[var(--gc-text)]">{{ item.skin.name }}</p>
         <RarityBadge :rarity="item.skin.rarity" size="sm" />
         <p class="text-xs text-[var(--gc-text-muted)]">Float {{ item.floatValue.toFixed(4) }} · {{ item.wear }}</p>
-        <p v-if="formatSteamPrice(item.skin.steamPriceCents, item.skin.steamPriceCurrency)" class="text-xs text-[var(--gc-text-muted)]">
-          Steam-pris: {{ formatSteamPrice(item.skin.steamPriceCents, item.skin.steamPriceCurrency) }}
+        <p class="text-xs text-[var(--gc-text-muted)]">
+          {{ priceOrEstimate(item.skin.steamPriceCents, item.skin.steamPriceCurrency, item.skin.baseReferenceValue).estimated ? 'Estimert pris' : 'Steam-pris' }}:
+          {{ priceOrEstimate(item.skin.steamPriceCents, item.skin.steamPriceCurrency, item.skin.baseReferenceValue).text }}
         </p>
 
         <div class="mt-1 flex items-center gap-2 text-xs">
@@ -206,6 +207,7 @@ async function submitListing() {
       :steam-price-cents="inspectItem.skin.steamPriceCents"
       :steam-price-currency="inspectItem.skin.steamPriceCurrency"
       :steam-volume="inspectItem.skin.steamVolume"
+      :base-reference-value="inspectItem.skin.baseReferenceValue"
       @close="inspectItem = null"
     />
   </main>

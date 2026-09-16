@@ -10,6 +10,7 @@ const props = defineProps<{
   steamPriceCents?: number | null
   steamPriceCurrency?: string | null
   steamVolume?: number | null
+  baseReferenceValue?: number
 }>()
 
 const emit = defineEmits<{ close: [] }>()
@@ -93,8 +94,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
       <p v-if="floatValue !== undefined" class="mt-3 text-sm text-[var(--gc-text-muted)]">
         Float {{ floatValue.toFixed(4) }} <span v-if="wear">· {{ wear }}</span>
       </p>
-      <p v-if="formatSteamPrice(steamPriceCents ?? null, steamPriceCurrency ?? null)" class="mt-1 text-sm text-[var(--gc-text)]">
-        Steam-pris: {{ formatSteamPrice(steamPriceCents ?? null, steamPriceCurrency ?? null) }}
+      <p v-if="baseReferenceValue !== undefined" class="mt-1 text-sm text-[var(--gc-text)]">
+        {{ priceOrEstimate(steamPriceCents ?? null, steamPriceCurrency ?? null, baseReferenceValue).estimated ? 'Estimert pris' : 'Steam-pris' }}:
+        {{ priceOrEstimate(steamPriceCents ?? null, steamPriceCurrency ?? null, baseReferenceValue).text }}
         <span v-if="steamVolume" class="text-[var(--gc-text-muted)]">· {{ steamVolume.toLocaleString('nb-NO') }} solgt nylig</span>
       </p>
     </div>

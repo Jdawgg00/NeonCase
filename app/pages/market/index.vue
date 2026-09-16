@@ -142,8 +142,9 @@ useMarketEvents((event: MarketEvent) => {
             <RarityBadge :rarity="l.item.skin.rarity" size="sm" />
             <p class="text-xs text-[var(--gc-text-muted)]">Float {{ l.item.floatValue.toFixed(4) }} · {{ l.item.wear }}</p>
             <p v-if="l.sellerUsername" class="text-xs text-[var(--gc-text-muted)]">Selger: {{ l.sellerUsername }}</p>
-            <p v-if="formatSteamPrice(l.item.skin.steamPriceCents, l.item.skin.steamPriceCurrency)" class="text-xs text-[var(--gc-text-muted)]">
-              Steam-pris: {{ formatSteamPrice(l.item.skin.steamPriceCents, l.item.skin.steamPriceCurrency) }}
+            <p class="text-xs text-[var(--gc-text-muted)]">
+              {{ priceOrEstimate(l.item.skin.steamPriceCents, l.item.skin.steamPriceCurrency, l.item.skin.baseReferenceValue).estimated ? 'Estimert pris' : 'Steam-pris' }}:
+              {{ priceOrEstimate(l.item.skin.steamPriceCents, l.item.skin.steamPriceCurrency, l.item.skin.baseReferenceValue).text }}
             </p>
             <p class="font-display text-rarity-uncommon">{{ formatKr(l.price) }}</p>
           </div>
@@ -178,6 +179,7 @@ useMarketEvents((event: MarketEvent) => {
       :steam-price-cents="inspectListing.item.skin.steamPriceCents"
       :steam-price-currency="inspectListing.item.skin.steamPriceCurrency"
       :steam-volume="inspectListing.item.skin.steamVolume"
+      :base-reference-value="inspectListing.item.skin.baseReferenceValue"
       @close="inspectListing = null"
     />
   </main>

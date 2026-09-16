@@ -29,9 +29,18 @@ export default defineNuxtConfig({
   },
 
   auth: {
+    // baseURL only matters as a build-time fallback: AUTH_ORIGIN is a
+    // runtime env var (Buildpacks build env only accepts BP_* names), so
+    // this always bakes in as http://localhost:3000 in a Minato build.
+    // trustHost makes the server derive the real origin per-request from
+    // the incoming Host/X-Forwarded-Host header instead -- safe here since
+    // Minato's Gateway is the only entrypoint. Without it, actions that need
+    // a server-computed absolute URL (sign-out's redirect, in particular)
+    // sent the browser to the baked-in localhost instead of the real host.
     baseURL: process.env.AUTH_ORIGIN || 'http://localhost:3000/api/auth',
     provider: {
       type: 'authjs',
+      trustHost: true,
     },
     globalAppMiddleware: {
       isEnabled: false, // we use explicit per-route middleware instead (see server/middleware)

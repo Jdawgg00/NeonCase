@@ -261,8 +261,8 @@ const inspecting = ref(false)
             </div>
             <p class="line-clamp-2 text-xs text-[var(--gc-text)]">{{ drop.name }}</p>
             <p class="text-xs text-[var(--gc-text-muted)]">{{ drop.probabilityPercent }}%</p>
-            <p v-if="formatSteamPrice(drop.steamPriceCents, drop.steamPriceCurrency)" class="text-xs text-[var(--gc-text-muted)]">
-              {{ formatSteamPrice(drop.steamPriceCents, drop.steamPriceCurrency) }}
+            <p class="text-xs text-[var(--gc-text-muted)]">
+              {{ priceOrEstimate(drop.steamPriceCents, drop.steamPriceCurrency, drop.baseReferenceValue).text }}
             </p>
           </div>
         </div>
@@ -281,6 +281,7 @@ const inspecting = ref(false)
       :steam-price-cents="result.item.skin.steamPriceCents"
       :steam-price-currency="result.item.skin.steamPriceCurrency"
       :steam-volume="result.item.skin.steamVolume"
+      :base-reference-value="result.item.skin.baseReferenceValue"
       @close="inspecting = false"
     />
   </main>
