@@ -5,6 +5,7 @@ import { applyBalanceDeltaTx, withOptimisticRetry } from './wallet.service'
 import { publishMarketEvent } from '~~/server/utils/market-events'
 import { socialService } from './social.service'
 import { CannotBuyOwnListingError, ItemNotAvailableError, ListingUnavailableError, NotOwnerError, ValidationError } from './errors'
+import { fallbackValueForRarity } from '~~/types/fallback-prices'
 
 const MARKET_FEE_BPS = Number(process.env.MARKET_FEE_BPS ?? 700) // basis points, 700 = 7.00%
 // Quick-sell trades the wait for a real buyer for an instant, guaranteed
@@ -12,13 +13,9 @@ const MARKET_FEE_BPS = Number(process.env.MARKET_FEE_BPS ?? 700) // basis points
 // deal whenever there's time to wait for one.
 const QUICK_SELL_RATE = 0.8
 
-/**
- * The real Steam value in whole kr when we have one, otherwise the
- * internal, cosmetic baseReferenceValue (see schema.prisma) as a fallback
- * for skins with no successful Steam lookup yet.
- */
-function referenceValueFor(skin: { baseReferenceValue: number; steamPriceCents: number | null }): number {
-  return skin.steamPriceCents != null ? Math.round(skin.steamPriceCents / 100) : skin.baseReferenceValue
+/** The real Steam value in whole kr when we have one, otherwise a small per-rarity fallback (see types/fallback-prices.ts). */
+function referenceValueFor(skin: { rarity: string; steamPriceCents: number | null }): number {
+  return skin.steamPriceCents != null ? Math.round(skin.steamPriceCents / 100) : fallbackValueForRarity(skin.rarity)
 }
 
 export const marketService = {

@@ -5,19 +5,13 @@ export function formatSteamPrice(cents: number | null, currency: string | null):
 }
 
 /**
- * Real Steam price when we have one, otherwise a labeled estimate derived
- * from the skin's internal reference value — never silently presented as a
- * real Steam price, since baseReferenceValue is cosmetic (see
- * schema.prisma), not a real-world figure.
+ * Real Steam price when we have one, otherwise "Ukjent" — showing a
+ * fabricated number here (as an earlier version did, derived from the
+ * skin's cosmetic baseReferenceValue) produced absurd figures like 250 kr
+ * for a skin actually worth 3 kr. No number is better than a wrong one.
  */
-export function priceOrEstimate(
-  cents: number | null,
-  currency: string | null,
-  baseReferenceValue: number,
-): { text: string; estimated: boolean } {
-  const real = formatSteamPrice(cents, currency)
-  if (real) return { text: real, estimated: false }
-  return { text: formatKr(baseReferenceValue), estimated: true }
+export function displaySteamPrice(cents: number | null, currency: string | null): string {
+  return formatSteamPrice(cents, currency) ?? 'Ukjent'
 }
 
 /**

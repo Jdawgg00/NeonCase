@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { InventoryItemDTO, MarketListingDTO } from '~~/types/dto'
+import { fallbackValueForRarity } from '~~/types/fallback-prices'
 
 definePageMeta({ middleware: 'auth' })
 
@@ -20,7 +21,7 @@ const quickSellState = ref<Record<string, 'idle' | 'confirming' | 'selling' | 'e
 const quickSellError = ref<Record<string, string>>({})
 
 function quickSellPrice(item: InventoryItemDTO) {
-  const referenceValue = item.skin.steamPriceCents != null ? Math.round(item.skin.steamPriceCents / 100) : item.skin.baseReferenceValue
+  const referenceValue = item.skin.steamPriceCents != null ? Math.round(item.skin.steamPriceCents / 100) : fallbackValueForRarity(item.skin.rarity)
   return Math.floor(referenceValue * 0.8)
 }
 
@@ -50,11 +51,11 @@ async function toggleLock(item: InventoryItemDTO) {
 
 function openListDialog(item: InventoryItemDTO) {
   listingItem.value = item
-  // Suggest the real Steam value when we have one — baseReferenceValue is
-  // an internal, cosmetic number (see schema.prisma), not a real price, and
-  // defaulting to it here suggested wildly wrong prices (e.g. 250 kr for a
-  // skin Steam prices at 3 kr).
-  listingPrice.value = item.skin.steamPriceCents ? Math.round(item.skin.steamPriceCents / 100) : item.skin.baseReferenceValue
+  // Suggest the real Steam value when we have one, otherwise a small
+  // per-rarity fallback — baseReferenceValue (an internal, cosmetic number,
+  // see schema.prisma) suggested wildly wrong prices like 250 kr for a skin
+  // Steam prices at 3 kr.
+  listingPrice.value = item.skin.steamPriceCents ? Math.round(item.skin.steamPriceCents / 100) : fallbackValueForRarity(item.skin.rarity)
   listingState.value = 'idle'
 }
 
@@ -112,8 +113,7 @@ async function submitListing() {
         <RarityBadge :rarity="item.skin.rarity" size="sm" />
         <p class="text-xs text-[var(--gc-text-muted)]">Float {{ item.floatValue.toFixed(4) }} · {{ item.wear }}</p>
         <p class="text-xs text-[var(--gc-text-muted)]">
-          {{ priceOrEstimate(item.skin.steamPriceCents, item.skin.steamPriceCurrency, item.skin.baseReferenceValue).estimated ? 'Estimert pris' : 'Steam-pris' }}:
-          {{ priceOrEstimate(item.skin.steamPriceCents, item.skin.steamPriceCurrency, item.skin.baseReferenceValue).text }}
+          Steam-pris: {{ displaySteamPrice(item.skin.steamPriceCents, item.skin.steamPriceCurrency) }}
         </p>
 
         <div class="mt-1 flex items-center gap-2 text-xs">
@@ -208,7 +208,6 @@ async function submitListing() {
       :steam-price-cents="inspectItem.skin.steamPriceCents"
       :steam-price-currency="inspectItem.skin.steamPriceCurrency"
       :steam-volume="inspectItem.skin.steamVolume"
-      :base-reference-value="inspectItem.skin.baseReferenceValue"
       @close="inspectItem = null"
     />
   </main>
