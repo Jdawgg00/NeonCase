@@ -89,6 +89,25 @@ export const socialRepository = {
     })
   },
 
+  /** Every SPECIAL-rarity ("gold") case opening ever, newest first — a hall of fame, not just today's best. */
+  allSpecialDrops(excludeRoles: string[], take = 50, db: Db = prisma) {
+    return db.caseOpening.findMany({
+      where: {
+        user: { role: { notIn: excludeRoles as never[] } },
+        inventoryItem: { skinDefinition: { rarity: 'SPECIAL' } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take,
+      select: {
+        id: true,
+        createdAt: true,
+        user: { select: { username: true } },
+        case: { select: { name: true } },
+        inventoryItem: { select: { skinDefinition: { select: { name: true } } } },
+      },
+    })
+  },
+
   /** Best/worst single drop (by real Steam value, falling back to a small per-rarity guess) among today's case openings. */
   async todaysExtremeDrops(excludeRoles: string[], db: Db = prisma) {
     const todayStart = new Date()
