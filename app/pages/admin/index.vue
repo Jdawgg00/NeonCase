@@ -116,6 +116,24 @@ async function createCase() {
   }
 }
 
+// --- Purge test users ---
+const purgeState = ref<'idle' | 'confirming' | 'running' | 'done' | 'error'>('idle')
+const purgeResult = ref('')
+
+async function purgeTestUsers() {
+  purgeState.value = 'running'
+  try {
+    const result = await $fetch<{ deletedUsers: number; usernames: string[] }>('/api/admin/purge-test-users', { method: 'POST' })
+    purgeResult.value =
+      result.deletedUsers === 0 ? 'Ingen testbrukere funnet.' : `Slettet ${result.deletedUsers} testbrukere: ${result.usernames.join(', ')}`
+    purgeState.value = 'done'
+    await refreshUsers()
+  } catch (err: unknown) {
+    purgeResult.value = (err as { data?: { statusMessage?: string } })?.data?.statusMessage ?? 'Kunne ikke slette testbrukere.'
+    purgeState.value = 'error'
+  }
+}
+
 // --- Adjust balance ---
 const adjustTarget = ref<AdminUser | null>(null)
 const adjustAmount = ref<number>(0)
@@ -297,7 +315,27 @@ async function submitSuspend() {
 
     <!-- Users -->
     <section>
-      <h2 class="mb-3 font-display text-lg">Brukere</h2>
+      <div class="mb-3 flex items-center justify-between">
+        <h2 class="font-display text-lg">Brukere</h2>
+        <div class="flex items-center gap-2">
+          <button
+            v-if="purgeState !== 'confirming'"
+            type="button"
+            class="text-xs text-rarity-epic hover:underline"
+            @click="purgeState = 'confirming'"
+          >
+            Slett testbrukere
+          </button>
+          <template v-else>
+            <span class="text-xs text-[var(--gc-text-muted)]">Sikker? Sletter alle tester01-20/guest og deres inventar/lisninger permanent.</span>
+            <button type="button" class="text-xs text-rarity-epic hover:underline" :disabled="purgeState === 'running'" @click="purgeTestUsers">
+              {{ purgeState === 'running' ? 'Sletter…' : 'Bekreft sletting' }}
+            </button>
+            <button type="button" class="text-xs hover:underline" @click="purgeState = 'idle'">Avbryt</button>
+          </template>
+        </div>
+      </div>
+      <p v-if="purgeResult" class="mb-2 text-xs" :class="purgeState === 'error' ? 'text-rarity-epic' : 'text-rarity-uncommon'">{{ purgeResult }}</p>
       <ul class="divide-y divide-[var(--gc-steel-700)] rounded-[var(--gc-radius-md)] border border-[var(--gc-steel-700)]">
         <li v-for="u in users" :key="u.id" class="flex items-center justify-between px-4 py-2 text-sm">
           <span>

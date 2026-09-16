@@ -97,4 +97,38 @@ export const adminService = {
   auditLog(take?: number) {
     return adminRepository.listAuditLog(take)
   },
+
+  /**
+   * One-off cleanup for the seeded tester01..20/guest accounts (the seed
+   * script no longer creates them, but any that already exist in a live
+   * database need explicit removal). Deletes in FK order: MarketSale ->
+   * MarketListing -> CaseOpening -> InventoryItem -> User. Wallet,
+   * WalletTransaction, UserAchievement, UserMissionProgress and
+   * Notification all cascade automatically on User delete. Only ever
+   * touches rows owned by a test/guest user right now — an item a test
+   * user sold to a real player, now owned by that real player, is left
+   * alone.
+   */
+  async purgeTestUsers(actorId: string) {
+    const testUsers = await prisma.user.findMany({
+      where: { OR: [{ username: { startsWith: 'tester', mode: 'insensitive' } }, { username: { equals: 'guest', mode: 'insensitive' } }] },
+      select: { id: true, username: true },
+    })
+    const testUserIds = testUsers.map((u) => u.id)
+    if (testUserIds.length === 0) return { deletedUsers: 0, usernames: [] }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.marketSale.deleteMany({ where: { OR: [{ buyerId: { in: testUserIds } }, { sellerId: { in: testUserIds } }] } })
+      await tx.marketListing.deleteMany({ where: { sellerId: { in: testUserIds } } })
+      await tx.caseOpening.deleteMany({ where: { userId: { in: testUserIds } } })
+      await tx.inventoryItem.deleteMany({ where: { ownerId: { in: testUserIds } } })
+      await tx.user.deleteMany({ where: { id: { in: testUserIds } } })
+      await auditLogRepository.record(
+        { actorId, action: 'ADMIN_PURGE_TEST_USERS', metadata: { count: testUserIds.length, usernames: testUsers.map((u) => u.username) } },
+        tx,
+      )
+    })
+
+    return { deletedUsers: testUserIds.length, usernames: testUsers.map((u) => u.username) }
+  },
 }

@@ -123,41 +123,10 @@ async function main() {
     },
   })
 
-  // Dev-only guest account — the "Fortsett som gjest" button on /login signs
-  // straight into this user, bypassing the shared dev password (see
-  // GUEST_EMAIL bypass in server/utils/auth-options.ts).
-  await prisma.user.upsert({
-    where: { email: 'guest@neoncrate.local' },
-    update: {},
-    create: {
-      email: 'guest@neoncrate.local',
-      username: 'guest',
-      role: 'USER',
-      status: 'ACTIVE',
-      wallet: { create: { balance: STARTING_BALANCE } },
-    },
-  })
-
-  const testUsernames = Array.from({ length: 20 }, (_, i) => `tester${String(i + 1).padStart(2, '0')}`)
-
-  for (const username of testUsernames) {
-    await prisma.user.upsert({
-      where: { email: `${username}@neoncrate.local` },
-      update: {},
-      create: {
-        email: `${username}@neoncrate.local`,
-        username,
-        role: 'USER',
-        status: 'ACTIVE',
-        wallet: { create: { balance: STARTING_BALANCE } },
-      },
-    })
-  }
-
   await seedSkinsAndCases()
   await seedAchievementsAndMissions()
 
-  console.log(`Seedet admin (${admin.username}) og ${testUsernames.length} testbrukere, alle med ${STARTING_BALANCE} credits.`)
+  console.log(`Seedet admin (${admin.username}).`)
 }
 
 main()
