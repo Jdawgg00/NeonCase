@@ -2,6 +2,7 @@ import { prisma } from '~~/server/utils/prisma'
 import { catalogRepository } from '~~/server/repositories/catalog.repository'
 import { adminRepository } from '~~/server/repositories/admin.repository'
 import { auditLogRepository } from '~~/server/repositories/audit-log.repository'
+import { caseSeeds } from '~~/prisma/seed-data/cases'
 import { ValidationError } from './errors'
 
 export const adminService = {
@@ -130,5 +131,30 @@ export const adminService = {
     })
 
     return { deletedUsers: testUserIds.length, usernames: testUsers.map((u) => u.username) }
+  },
+
+  /**
+   * One-time fix for cases that were created back when the seed script's
+   * upsert still overwrote casePrice/keyPrice on every boot (so the DB row
+   * already existed with the old 500/100 placeholder before that behavior
+   * was removed) -- an upsert's `update` branch never fires `create`, so
+   * seed.ts no longer touching an existing row also means it never fixes
+   * one. Explicit, admin-triggered, and safe to run more than once.
+   */
+  async syncCasePricesFromSeed(actorId: string) {
+    const updated: string[] = []
+    await prisma.$transaction(async (tx) => {
+      for (const c of caseSeeds) {
+        const result = await tx.caseDefinition.updateMany({
+          where: { slug: c.slug, NOT: { casePrice: c.casePrice, keyPrice: c.keyPrice } },
+          data: { casePrice: c.casePrice, keyPrice: c.keyPrice },
+        })
+        if (result.count > 0) updated.push(c.name)
+      }
+      if (updated.length > 0) {
+        await auditLogRepository.record({ actorId, action: 'ADMIN_SYNC_CASE_PRICES', metadata: { cases: updated } }, tx)
+      }
+    })
+    return { updated }
   },
 }

@@ -102,6 +102,22 @@ async function createSkin() {
   }
 }
 
+// --- Sync case prices from seed defaults ---
+const syncPricesState = ref<'idle' | 'running' | 'done' | 'error'>('idle')
+const syncPricesResult = ref('')
+async function syncCasePrices() {
+  syncPricesState.value = 'running'
+  try {
+    const result = await $fetch<{ updated: string[] }>('/api/admin/sync-case-prices', { method: 'POST' })
+    syncPricesResult.value = result.updated.length === 0 ? 'Alle priser var allerede riktige.' : `Oppdaterte: ${result.updated.join(', ')}`
+    syncPricesState.value = 'done'
+    await refreshCases()
+  } catch (err: unknown) {
+    syncPricesResult.value = (err as { data?: { statusMessage?: string } })?.data?.statusMessage ?? 'Kunne ikke synke priser.'
+    syncPricesState.value = 'error'
+  }
+}
+
 // --- Create case ---
 const newCase = ref({ slug: '', name: '', description: '', casePrice: 500, keyPrice: undefined as number | undefined })
 const caseError = ref('')
@@ -230,7 +246,20 @@ async function submitSuspend() {
 
     <!-- Cases -->
     <section>
-      <h2 class="mb-3 font-display text-lg">Cases</h2>
+      <div class="mb-3 flex items-center justify-between">
+        <h2 class="font-display text-lg">Cases</h2>
+        <button
+          type="button"
+          class="text-xs hover:underline"
+          :disabled="syncPricesState === 'running'"
+          @click="syncCasePrices"
+        >
+          {{ syncPricesState === 'running' ? 'Synker…' : 'Synk priser fra kode' }}
+        </button>
+      </div>
+      <p v-if="syncPricesResult" class="mb-3 text-xs" :class="syncPricesState === 'error' ? 'text-rarity-epic' : 'text-rarity-uncommon'">
+        {{ syncPricesResult }}
+      </p>
 
       <div class="mb-4 rounded-[var(--gc-radius-md)] border border-[var(--gc-steel-700)] bg-graphite-900 p-4">
         <p class="mb-2 text-sm">Opprett ny case</p>
