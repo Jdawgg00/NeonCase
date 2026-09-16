@@ -21,14 +21,17 @@ async function seedSkinsAndCases() {
   }
 
   for (const c of caseSeeds) {
+    // casePrice/keyPrice are seed-only defaults: the seed script runs on every
+    // boot (no separate release step on Minato), so an update clause here
+    // would silently clobber a live Steam price refresh on every redeploy.
+    // Only a brand-new case gets the seed price; an existing one keeps
+    // whatever price it already has.
     const caseDefinition = await prisma.caseDefinition.upsert({
       where: { slug: c.slug },
       update: {
         name: c.name,
         description: c.description,
         imageUrl: c.imageUrl,
-        casePrice: c.casePrice,
-        keyPrice: c.keyPrice,
       },
       create: {
         slug: c.slug,

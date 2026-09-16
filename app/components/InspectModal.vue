@@ -23,8 +23,6 @@ const MAX_TILT_DEG = 14
 const stageRef = ref<HTMLElement | null>(null)
 const rotateX = ref(0)
 const rotateY = ref(0)
-const glareX = ref(50)
-const glareY = ref(50)
 const hovering = ref(false)
 
 function onPointerMove(e: PointerEvent) {
@@ -35,8 +33,6 @@ function onPointerMove(e: PointerEvent) {
   const py = (e.clientY - rect.top) / rect.height // 0..1
   rotateY.value = (px - 0.5) * 2 * MAX_TILT_DEG
   rotateX.value = (0.5 - py) * 2 * MAX_TILT_DEG
-  glareX.value = px * 100
-  glareY.value = py * 100
 }
 
 function onPointerLeave() {
@@ -92,15 +88,6 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
             </div>
           </template>
         </div>
-
-        <!-- Glare — follows the pointer, fades in only while hovering -->
-        <div
-          class="pointer-events-none absolute inset-0 transition-opacity duration-150"
-          :class="hovering ? 'opacity-100' : 'opacity-0'"
-          :style="{
-            background: `radial-gradient(circle at ${glareX}% ${glareY}%, rgba(255,255,255,0.22), transparent 45%)`,
-          }"
-        />
       </div>
 
       <p v-if="floatValue !== undefined" class="mt-3 text-sm text-[var(--gc-text-muted)]">

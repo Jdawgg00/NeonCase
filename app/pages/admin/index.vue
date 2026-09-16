@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { nanoid } from 'nanoid'
+
 definePageMeta({ middleware: ['auth', 'admin'] })
 
 interface EconomyReport {
@@ -34,6 +36,7 @@ interface AdminUser {
   email: string
   role: string
   status: string
+  wallet: { balance: number } | null
 }
 interface AuditLogEntry {
   id: string
@@ -110,6 +113,34 @@ async function createCase() {
     await refreshCases()
   } catch (err: unknown) {
     caseError.value = (err as { data?: { statusMessage?: string } })?.data?.statusMessage ?? 'Kunne ikke opprette case.'
+  }
+}
+
+// --- Adjust balance ---
+const adjustTarget = ref<AdminUser | null>(null)
+const adjustAmount = ref<number>(0)
+const adjustReason = ref('')
+const adjustError = ref('')
+
+async function submitAdjustment() {
+  if (!adjustTarget.value) return
+  adjustError.value = ''
+  try {
+    await $fetch('/api/admin/wallet-adjustment', {
+      method: 'POST',
+      body: {
+        targetUserId: adjustTarget.value.id,
+        amount: adjustAmount.value,
+        reason: adjustReason.value,
+        idempotencyKey: `admin-adjust:${adjustTarget.value.id}:${nanoid()}`,
+      },
+    })
+    adjustTarget.value = null
+    adjustAmount.value = 0
+    adjustReason.value = ''
+    await refreshUsers()
+  } catch (err: unknown) {
+    adjustError.value = (err as { data?: { statusMessage?: string } })?.data?.statusMessage ?? 'Kunne ikke justere saldo.'
   }
 }
 
@@ -269,10 +300,19 @@ async function submitSuspend() {
       <h2 class="mb-3 font-display text-lg">Brukere</h2>
       <ul class="divide-y divide-[var(--gc-steel-700)] rounded-[var(--gc-radius-md)] border border-[var(--gc-steel-700)]">
         <li v-for="u in users" :key="u.id" class="flex items-center justify-between px-4 py-2 text-sm">
-          <span>{{ u.username }} <span class="text-xs text-[var(--gc-text-muted)]">({{ u.role }} · {{ u.status }})</span></span>
-          <button type="button" class="text-xs text-rarity-epic hover:underline" @click="suspendTarget = u; suspendStatus = u.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE'">
-            {{ u.status === 'ACTIVE' ? 'Suspender' : 'Reaktiver' }}
-          </button>
+          <span>
+            {{ u.username }}
+            <span class="text-xs text-[var(--gc-text-muted)]">({{ u.role }} · {{ u.status }})</span>
+            <span class="text-xs text-rarity-uncommon">· {{ formatKr(u.wallet?.balance ?? 0) }}</span>
+          </span>
+          <span class="flex gap-3">
+            <button type="button" class="text-xs hover:underline" @click="adjustTarget = u; adjustAmount = 0; adjustReason = ''">
+              Juster saldo
+            </button>
+            <button type="button" class="text-xs text-rarity-epic hover:underline" @click="suspendTarget = u; suspendStatus = u.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE'">
+              {{ u.status === 'ACTIVE' ? 'Suspender' : 'Reaktiver' }}
+            </button>
+          </span>
         </li>
       </ul>
     </section>
@@ -287,6 +327,34 @@ async function submitSuspend() {
         </li>
       </ul>
     </section>
+
+    <!-- Adjust balance dialog -->
+    <div v-if="adjustTarget" class="fixed inset-0 z-20 flex items-center justify-center bg-black/60 p-4">
+      <div class="w-full max-w-sm rounded-[var(--gc-radius-md)] border border-[var(--gc-steel-700)] bg-graphite-900 p-5">
+        <p class="mb-2 font-display">Juster saldo — {{ adjustTarget.username }}</p>
+        <p class="mb-2 text-xs text-[var(--gc-text-muted)]">Nåværende saldo: {{ formatKr(adjustTarget.wallet?.balance ?? 0) }}</p>
+        <input
+          v-model.number="adjustAmount"
+          type="number"
+          placeholder="Beløp (positivt = legg til, negativt = trekk fra)"
+          class="mb-2 w-full rounded-[var(--gc-radius-md)] border border-[var(--gc-steel-700)] bg-graphite-950 px-3 py-2 text-sm"
+        >
+        <textarea
+          v-model="adjustReason"
+          placeholder="Begrunnelse (minst 10 tegn) — logges i audit-loggen"
+          class="mb-2 w-full rounded-[var(--gc-radius-md)] border border-[var(--gc-steel-700)] bg-graphite-950 px-3 py-2 text-sm"
+        />
+        <p v-if="adjustError" class="mb-2 text-xs text-rarity-epic">{{ adjustError }}</p>
+        <div class="flex gap-2">
+          <button type="button" class="rounded-[var(--gc-radius-md)] bg-rarity-uncommon px-4 py-2 text-sm font-display text-graphite-950" @click="submitAdjustment">
+            Bekreft
+          </button>
+          <button type="button" class="rounded-[var(--gc-radius-md)] border border-[var(--gc-steel-700)] px-4 py-2 text-sm" @click="adjustTarget = null">
+            Avbryt
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- Suspend dialog -->
     <div v-if="suspendTarget" class="fixed inset-0 z-20 flex items-center justify-center bg-black/60 p-4">

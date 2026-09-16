@@ -6,7 +6,7 @@ type Db = Prisma.TransactionClient | typeof prisma
 export const adminRepository = {
   listUsers(take = 100, db: Db = prisma) {
     return db.user.findMany({
-      select: { id: true, username: true, email: true, role: true, status: true },
+      select: { id: true, username: true, email: true, role: true, status: true, wallet: { select: { balance: true } } },
       orderBy: { createdAt: 'desc' },
       take,
     })

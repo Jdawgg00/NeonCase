@@ -151,9 +151,106 @@ async function fetchCaseOrKeyPrice(marketHashName: string, attempt = 0): Promise
   return { kind: 'price', kr: Math.max(1, Math.round(cents / 100)) }
 }
 
+// The scheduled task (every 6h) and an admin-triggered refresh both end up
+// calling refreshAllPrices/refreshCasePrices, and either one can run for
+// well over a minute. Without a guard, an admin trigger landing mid-cron (or
+// two replicas each running their own copy of the schedule) fires two
+// overlapping batches at once — Steam's bot-protection layer sees roughly
+// double the request rate and starts blocking almost everything, which is
+// exactly what produced 592/723 failed skins and 21/21 failed cases in one
+// run. This module-level flag only protects one process, not multiple
+// replicas; keep the app pinned to a single instance too.
+let refreshInFlight = false
+
+async function refreshAllPricesInner() {
+  const skins = await prisma.skinDefinition.findMany({
+    select: { id: true, name: true, minFloat: true, maxFloat: true },
+  })
+
+  let updated = 0
+  let failed = 0
+
+  for (const [i, skin] of skins.entries()) {
+    try {
+      const price = await fetchPrice(marketHashNameFor(skin))
+
+      if (price) {
+        await prisma.skinDefinition.update({
+          where: { id: skin.id },
+          data: {
+            steamPriceCents: price.cents,
+            steamVolume: price.volume,
+            steamPriceUpdatedAt: new Date(),
+          },
+        })
+        updated++
+      } else {
+        failed++
+      }
+    } catch (err) {
+      // A single bad DB write (e.g. a dropped pooled connection) must
+      // never take down the rest of a multi-hundred-item batch.
+      console.error(`[pricing] failed to update ${skin.name}:`, err)
+      failed++
+    }
+
+    if (i < skins.length - 1) await new Promise((resolve) => setTimeout(resolve, REQUEST_DELAY_MS))
+  }
+
+  return { updated, failed, total: skins.length }
+}
+
+/**
+ * Sets each case's real price (in whole kr) directly from Steam. This is
+ * the one place a background refresh actually changes what a player pays,
+ * so a failed fetch leaves the existing price alone rather than guessing.
+ *
+ * The key price is not looked up: every weapon case in CS2 requires one,
+ * and they all cost the same fixed store price. Deciding it from Market
+ * listings (as this used to) got it wrong for every case released after
+ * Valve made new keys non-tradeable in late 2019 — those keys are still
+ * required and still cost the same, they just can't appear on the Market,
+ * which the lookup misread as "this case needs no key".
+ */
+async function refreshCasePricesInner() {
+  const cases = await prisma.caseDefinition.findMany({ select: { id: true, name: true } })
+
+  let updated = 0
+  let failed = 0
+
+  for (const [i, c] of cases.entries()) {
+    console.log(`[pricing] case ${i + 1}/${cases.length}: ${c.name}`)
+    try {
+      const caseResult = await fetchCaseOrKeyPrice(c.name)
+      console.log(`[pricing]   case price lookup -> ${caseResult.kind}`)
+
+      if (caseResult.kind === 'price') {
+        await prisma.caseDefinition.update({
+          where: { id: c.id },
+          data: { casePrice: caseResult.kr, keyPrice: FIXED_KEY_PRICE_KR },
+        })
+        updated++
+      } else {
+        failed++
+      }
+    } catch (err) {
+      console.error(`[pricing] failed to update case ${c.name}:`, err)
+      failed++
+    }
+
+    if (i < cases.length - 1) await new Promise((resolve) => setTimeout(resolve, REQUEST_DELAY_MS))
+  }
+
+  return { updated, failed, total: cases.length }
+}
+
 export const pricingService = {
   marketHashNameFor,
   parsePriceToCents,
+
+  isRefreshInFlight() {
+    return refreshInFlight
+  },
 
   /**
    * Refreshes every skin's Steam reference price, one request at a time.
@@ -162,84 +259,28 @@ export const pricingService = {
    * task or an explicit admin trigger, never inline in a user request.
    */
   async refreshAllPrices() {
-    const skins = await prisma.skinDefinition.findMany({
-      select: { id: true, name: true, minFloat: true, maxFloat: true },
-    })
-
-    let updated = 0
-    let failed = 0
-
-    for (const [i, skin] of skins.entries()) {
-      try {
-        const price = await fetchPrice(marketHashNameFor(skin))
-
-        if (price) {
-          await prisma.skinDefinition.update({
-            where: { id: skin.id },
-            data: {
-              steamPriceCents: price.cents,
-              steamVolume: price.volume,
-              steamPriceUpdatedAt: new Date(),
-            },
-          })
-          updated++
-        } else {
-          failed++
-        }
-      } catch (err) {
-        // A single bad DB write (e.g. a dropped pooled connection) must
-        // never take down the rest of a multi-hundred-item batch.
-        console.error(`[pricing] failed to update ${skin.name}:`, err)
-        failed++
-      }
-
-      if (i < skins.length - 1) await new Promise((resolve) => setTimeout(resolve, REQUEST_DELAY_MS))
+    if (refreshInFlight) {
+      console.log('[pricing] refresh already in flight — skipping this trigger')
+      return { updated: 0, failed: 0, total: 0, skipped: true }
     }
-
-    return { updated, failed, total: skins.length }
+    refreshInFlight = true
+    try {
+      return await refreshAllPricesInner()
+    } finally {
+      refreshInFlight = false
+    }
   },
 
-  /**
-   * Sets each case's real price (in whole kr) directly from Steam. This is
-   * the one place a background refresh actually changes what a player pays,
-   * so a failed fetch leaves the existing price alone rather than guessing.
-   *
-   * The key price is not looked up: every weapon case in CS2 requires one,
-   * and they all cost the same fixed store price. Deciding it from Market
-   * listings (as this used to) got it wrong for every case released after
-   * Valve made new keys non-tradeable in late 2019 — those keys are still
-   * required and still cost the same, they just can't appear on the Market,
-   * which the lookup misread as "this case needs no key".
-   */
   async refreshCasePrices() {
-    const cases = await prisma.caseDefinition.findMany({ select: { id: true, name: true } })
-
-    let updated = 0
-    let failed = 0
-
-    for (const [i, c] of cases.entries()) {
-      console.log(`[pricing] case ${i + 1}/${cases.length}: ${c.name}`)
-      try {
-        const caseResult = await fetchCaseOrKeyPrice(c.name)
-        console.log(`[pricing]   case price lookup -> ${caseResult.kind}`)
-
-        if (caseResult.kind === 'price') {
-          await prisma.caseDefinition.update({
-            where: { id: c.id },
-            data: { casePrice: caseResult.kr, keyPrice: FIXED_KEY_PRICE_KR },
-          })
-          updated++
-        } else {
-          failed++
-        }
-      } catch (err) {
-        console.error(`[pricing] failed to update case ${c.name}:`, err)
-        failed++
-      }
-
-      if (i < cases.length - 1) await new Promise((resolve) => setTimeout(resolve, REQUEST_DELAY_MS))
+    if (refreshInFlight) {
+      console.log('[pricing] refresh already in flight — skipping this trigger')
+      return { updated: 0, failed: 0, total: 0, skipped: true }
     }
-
-    return { updated, failed, total: cases.length }
+    refreshInFlight = true
+    try {
+      return await refreshCasePricesInner()
+    } finally {
+      refreshInFlight = false
+    }
   },
 }
