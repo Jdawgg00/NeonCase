@@ -1,4 +1,5 @@
 import { PrismaClient, type Rarity } from '@prisma/client'
+import bcrypt from 'bcryptjs'
 import { skinSeeds } from './seed-data/skins'
 import { caseSeeds } from './seed-data/cases'
 import { buildDropWeights } from '../server/utils/case-odds'
@@ -111,14 +112,20 @@ async function seedAchievementsAndMissions() {
 // Fase 3: 50+ skins og 5 cases med publiserte, korrekt vektede drop-tabeller.
 // Fase 5: achievements og en mission som de sosiale hookene faktisk kan låse opp.
 async function main() {
+  // Forced to a known password on every boot (unlike every other user's
+  // password, which is claimed on first login and left alone after) --
+  // this is the one account whose credentials must be predictable so admins
+  // can always get in.
+  const adminPasswordHash = await bcrypt.hash('admin', 10)
   const admin = await prisma.user.upsert({
     where: { email: 'admin@neoncrate.local' },
-    update: {},
+    update: { passwordHash: adminPasswordHash },
     create: {
       email: 'admin@neoncrate.local',
       username: 'admin',
       role: 'ADMIN',
       status: 'ACTIVE',
+      passwordHash: adminPasswordHash,
       wallet: { create: { balance: STARTING_BALANCE } },
     },
   })

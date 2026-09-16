@@ -17,3 +17,15 @@ export const displayNameSchema = z
   )
 
 export type DisplayName = z.infer<typeof displayNameSchema>
+
+/**
+ * bcrypt silently truncates input over 72 bytes, so cap length here to fail
+ * loudly instead. No complexity rules — this protects a virtual, no-real-
+ * value account, not a real one; the goal is "not blank", not NIST 800-63.
+ */
+export const passwordSchema = z
+  .string()
+  .min(4, 'Passordet må være minst 4 tegn')
+  .max(72, 'Passordet kan være maks 72 tegn')
+
+export type Password = z.infer<typeof passwordSchema>

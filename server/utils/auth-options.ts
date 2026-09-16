@@ -87,16 +87,18 @@ export const authOptions: AuthOptions = {
           }),
         ]
       : []),
-    // Primary login: just a name. First time creates the account, every
-    // time after resolves to that same account so progress carries over.
+    // Primary login: name + password. First time on a name sets its
+    // password (or creates the account); every time after requires it —
+    // see userService.authenticate for the claim-on-first-login semantics.
     CredentialsProvider({
       id: 'name',
       name: 'Navn',
       credentials: {
         username: { label: 'Navn', type: 'text' },
+        password: { label: 'Passord', type: 'password' },
       },
-      async authorize(credentials: Record<'username', string> | undefined) {
-        const user = await userService.findOrCreateByName(credentials?.username ?? '')
+      async authorize(credentials: Record<'username' | 'password', string> | undefined) {
+        const user = await userService.authenticate(credentials?.username ?? '', credentials?.password ?? '')
         if (!user) return null
         return { id: user.id, email: user.email, name: user.username, image: user.image }
       },

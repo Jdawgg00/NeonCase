@@ -1,30 +1,37 @@
 <script setup lang="ts">
-import { displayNameSchema } from '~~/types/schemas/auth'
+import { displayNameSchema, passwordSchema } from '~~/types/schemas/auth'
 
 const { signIn } = useAuth()
 
 const name = ref('')
+const password = ref('')
 const state = ref<'idle' | 'submitting' | 'error'>('idle')
 const errorMessage = ref('')
 
 async function continueWithName() {
-  const parsed = displayNameSchema.safeParse(name.value)
-  if (!parsed.success) {
+  const parsedName = displayNameSchema.safeParse(name.value)
+  if (!parsedName.success) {
     state.value = 'error'
-    errorMessage.value = parsed.error.issues[0]?.message ?? 'Ugyldig navn'
+    errorMessage.value = parsedName.error.issues[0]?.message ?? 'Ugyldig navn'
+    return
+  }
+  const parsedPassword = passwordSchema.safeParse(password.value)
+  if (!parsedPassword.success) {
+    state.value = 'error'
+    errorMessage.value = parsedPassword.error.issues[0]?.message ?? 'Ugyldig passord'
     return
   }
 
   state.value = 'submitting'
   errorMessage.value = ''
 
-  // redirect: false so a rejected name can be shown inline instead of
+  // redirect: false so a rejected login can be shown inline instead of
   // bouncing to Auth.js's own error page.
-  const result = await signIn('name', { username: parsed.data, redirect: false })
+  const result = await signIn('name', { username: parsedName.data, password: parsedPassword.data, redirect: false })
 
   if (result?.error) {
     state.value = 'error'
-    errorMessage.value = 'Kunne ikke logge inn med det navnet. Prøv et annet.'
+    errorMessage.value = 'Feil navn eller passord.'
     return
   }
 
@@ -37,8 +44,9 @@ async function continueWithName() {
     <div>
       <h1 class="font-display text-2xl text-[var(--gc-text)]">Hva heter du?</h1>
       <p class="mt-2 text-sm text-[var(--gc-text-muted)]">
-        Navnet ditt blir husket på denne maskinen, så saldo, inventory og statistikk
-        er der neste gang du spiller. Skriv inn det samme navnet for å fortsette der du slapp.
+        Skriv inn navn og passord for å fortsette der du slapp. Har navnet ditt ikke satt
+        passord før, blir passordet du skriver nå satt som ditt — bruk det samme videre for å
+        beskytte kontoen din.
       </p>
     </div>
 
@@ -52,6 +60,17 @@ async function continueWithName() {
         maxlength="24"
         placeholder="Navnet ditt"
         data-testid="name-login-input"
+        class="rounded-[var(--gc-radius-md)] border border-[var(--gc-steel-700)] bg-graphite-900 px-3 py-2.5 text-[var(--gc-text)] placeholder:text-[var(--gc-text-muted)]"
+      >
+
+      <input
+        v-model="password"
+        type="password"
+        required
+        autocomplete="current-password"
+        maxlength="72"
+        placeholder="Passord"
+        data-testid="password-login-input"
         class="rounded-[var(--gc-radius-md)] border border-[var(--gc-steel-700)] bg-graphite-900 px-3 py-2.5 text-[var(--gc-text)] placeholder:text-[var(--gc-text-muted)]"
       >
 
