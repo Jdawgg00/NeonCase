@@ -1,7 +1,13 @@
 import type { Prisma } from '@prisma/client'
 import { prisma } from '~~/server/utils/prisma'
+import { fallbackValueForRarity } from '~~/types/fallback-prices'
 
 type Db = Prisma.TransactionClient | typeof prisma
+
+/** Real Steam value in whole kr when known, otherwise a small per-rarity fallback (see types/fallback-prices.ts). */
+function referenceValue(skin: { rarity: string; steamPriceCents: number | null }): number {
+  return skin.steamPriceCents != null ? Math.round(skin.steamPriceCents / 100) : fallbackValueForRarity(skin.rarity)
+}
 
 export const socialRepository = {
   // --- Achievements ---
@@ -56,12 +62,16 @@ export const socialRepository = {
     // materialized view if the leaderboard page gets slow.
     const rows = await db.inventoryItem.findMany({
       where: { owner: { role: { notIn: excludeRoles as never[] } } },
-      select: { ownerId: true, skinDefinition: { select: { baseReferenceValue: true } }, owner: { select: { username: true } } },
+      select: {
+        ownerId: true,
+        skinDefinition: { select: { rarity: true, steamPriceCents: true } },
+        owner: { select: { username: true } },
+      },
     })
     const totals = new Map<string, { username: string; value: number }>()
     for (const row of rows) {
       const entry = totals.get(row.ownerId) ?? { username: row.owner.username, value: 0 }
-      entry.value += row.skinDefinition.baseReferenceValue
+      entry.value += referenceValue(row.skinDefinition)
       totals.set(row.ownerId, entry)
     }
     return [...totals.entries()]
@@ -79,7 +89,7 @@ export const socialRepository = {
     })
   },
 
-  /** Best/worst single drop (by baseReferenceValue) among today's case openings. */
+  /** Best/worst single drop (by real Steam value, falling back to a small per-rarity guess) among today's case openings. */
   async todaysExtremeDrops(excludeRoles: string[], db: Db = prisma) {
     const todayStart = new Date()
     todayStart.setHours(0, 0, 0, 0)
@@ -91,7 +101,7 @@ export const socialRepository = {
         createdAt: true,
         user: { select: { username: true } },
         case: { select: { name: true } },
-        inventoryItem: { select: { skinDefinition: { select: { name: true, rarity: true, baseReferenceValue: true } } } },
+        inventoryItem: { select: { skinDefinition: { select: { name: true, rarity: true, steamPriceCents: true } } } },
       },
     })
 
@@ -102,12 +112,12 @@ export const socialRepository = {
       skinName: o.inventoryItem.skinDefinition.name,
       rarity: o.inventoryItem.skinDefinition.rarity,
       caseName: o.case.name,
-      value: o.inventoryItem.skinDefinition.baseReferenceValue,
+      value: referenceValue(o.inventoryItem.skinDefinition),
       createdAt: o.createdAt,
     })
 
     const sorted = [...openings].sort(
-      (a, b) => b.inventoryItem.skinDefinition.baseReferenceValue - a.inventoryItem.skinDefinition.baseReferenceValue,
+      (a, b) => referenceValue(b.inventoryItem.skinDefinition) - referenceValue(a.inventoryItem.skinDefinition),
     )
     return { best: toDto(sorted[0]!), worst: toDto(sorted[sorted.length - 1]!) }
   },
