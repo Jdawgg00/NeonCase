@@ -42,7 +42,7 @@ const TRANSACTION_LABELS: Record<string, string> = {
         <p class="text-sm text-[var(--gc-text-muted)]">Innlogget som</p>
         <p class="font-display text-lg">{{ session?.user?.username }}</p>
       </div>
-      <button class="text-sm text-[var(--gc-text-muted)] underline-offset-4 hover:underline" @click="signOut()">
+      <button class="text-sm text-[var(--gc-text-muted)] underline-offset-4 hover:underline" @click="signOut({ callbackUrl: '/login' })">
         Logg ut
       </button>
     </header>
@@ -51,15 +51,24 @@ const TRANSACTION_LABELS: Record<string, string> = {
       <p class="text-sm text-[var(--gc-text-muted)]">Saldo</p>
       <p data-testid="wallet-balance" class="font-display text-4xl text-rarity-uncommon">{{ formatKr(wallet?.balance ?? 0) }}</p>
 
-      <button
-        type="button"
-        data-testid="claim-daily-bonus"
-        class="mt-4 rounded-[var(--gc-radius-md)] bg-rarity-uncommon px-4 py-2 font-display text-graphite-950 transition disabled:cursor-not-allowed disabled:opacity-50"
-        :disabled="claimState === 'loading'"
-        @click="claimDailyBonus"
-      >
-        {{ claimState === 'loading' ? 'Henter…' : 'Hent daglig bonus' }}
-      </button>
+      <div class="mt-4 flex flex-wrap gap-3">
+        <button
+          type="button"
+          data-testid="claim-daily-bonus"
+          class="rounded-[var(--gc-radius-md)] bg-rarity-uncommon px-4 py-2 font-display text-graphite-950 transition disabled:cursor-not-allowed disabled:opacity-50"
+          :disabled="claimState === 'loading'"
+          @click="claimDailyBonus"
+        >
+          {{ claimState === 'loading' ? 'Henter…' : 'Hent daglig bonus' }}
+        </button>
+
+        <NuxtLink
+          to="/cases"
+          class="rounded-[var(--gc-radius-md)] border border-[var(--gc-steel-700)] px-4 py-2 font-display text-[var(--gc-text)] transition hover:border-rarity-uncommon"
+        >
+          Begynn å åpne cases
+        </NuxtLink>
+      </div>
 
       <p v-if="claimState === 'success'" data-testid="claim-success" class="mt-2 text-sm text-rarity-uncommon">Daglig bonus lagt til saldoen.</p>
       <p v-if="claimState === 'error'" data-testid="claim-error" class="mt-2 text-sm text-rarity-epic">{{ claimError }}</p>

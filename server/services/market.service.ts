@@ -131,7 +131,7 @@ export const marketService = {
 
     try {
       const totalSales = await prisma.marketSale.count({ where: { sellerId: listing.sellerId } })
-      await socialService.onMarketSale(listing.sellerId, totalSales)
+      await socialService.onMarketSale(listing.sellerId, totalSales, listing.price)
     } catch (err) {
       console.error('social hook failed after market sale (non-fatal):', err)
     }

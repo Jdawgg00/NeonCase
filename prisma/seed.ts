@@ -94,6 +94,21 @@ async function seedAchievementsAndMissions() {
     update: {},
     create: { slug: 'collector-10', name: 'Samler', description: 'Eier 10 objekter samtidig.', rewardCredits: 150 },
   })
+  await prisma.achievement.upsert({
+    where: { slug: 'special-drop' },
+    update: {},
+    create: { slug: 'special-drop', name: 'Gullfunn', description: 'Åpne et objekt av høyeste rarity (SPECIAL).', rewardCredits: 500 },
+  })
+  await prisma.achievement.upsert({
+    where: { slug: 'case-legend' },
+    update: {},
+    create: { slug: 'case-legend', name: 'Case-legende', description: 'Åpne 100 cases.', rewardCredits: 1000 },
+  })
+  await prisma.achievement.upsert({
+    where: { slug: 'big-sale' },
+    update: {},
+    create: { slug: 'big-sale', name: 'Storhandler', description: 'Selg et objekt for minst 1000 kr på markedet.', rewardCredits: 250 },
+  })
 
   await prisma.mission.upsert({
     where: { slug: 'open-cases-weekly' },

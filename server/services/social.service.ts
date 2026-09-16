@@ -40,6 +40,7 @@ export const socialService = {
   async onCaseOpened(userId: string, totalOpeningsForUser: number) {
     if (totalOpeningsForUser === 1) await unlockIfNew(userId, 'first-case-opened')
     if (totalOpeningsForUser === 10) await unlockIfNew(userId, 'case-veteran')
+    if (totalOpeningsForUser === 100) await unlockIfNew(userId, 'case-legend')
 
     for (const mission of await socialRepository.listActiveMissions()) {
       if (!mission.slug.startsWith('open-cases')) continue
@@ -51,8 +52,14 @@ export const socialService = {
   },
 
   /** Called after every successful market sale, for the seller. */
-  async onMarketSale(sellerId: string, totalSalesForSeller: number) {
+  async onMarketSale(sellerId: string, totalSalesForSeller: number, price: number) {
     if (totalSalesForSeller === 1) await unlockIfNew(sellerId, 'first-sale')
+    if (price >= 1000) await unlockIfNew(sellerId, 'big-sale')
+  },
+
+  /** Called after any case opening that landed a SPECIAL-rarity drop (a "gold"). */
+  async onSpecialDrop(userId: string) {
+    await unlockIfNew(userId, 'special-drop')
   },
 
   async checkInventoryMilestones(userId: string) {

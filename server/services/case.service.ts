@@ -121,6 +121,9 @@ export const caseService = {
         const totalOpenings = await prisma.caseOpening.count({ where: { userId: input.userId } })
         await socialService.onCaseOpened(input.userId, totalOpenings)
         await socialService.checkInventoryMilestones(input.userId)
+        if (opening.inventoryItem.skinDefinition.rarity === 'SPECIAL') {
+          await socialService.onSpecialDrop(input.userId)
+        }
       } catch (err) {
         console.error('social hook failed after case opening (non-fatal):', err)
       }
