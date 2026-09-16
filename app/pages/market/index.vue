@@ -141,6 +141,7 @@ useMarketEvents((event: MarketEvent) => {
             <p class="line-clamp-1 text-sm text-[var(--gc-text)]">{{ l.item.skin.name }}</p>
             <RarityBadge :rarity="l.item.skin.rarity" size="sm" />
             <p class="text-xs text-[var(--gc-text-muted)]">Float {{ l.item.floatValue.toFixed(4) }} · {{ l.item.wear }}</p>
+            <p v-if="l.sellerUsername" class="text-xs text-[var(--gc-text-muted)]">Selger: {{ l.sellerUsername }}</p>
             <p v-if="formatSteamPrice(l.item.skin.steamPriceCents, l.item.skin.steamPriceCurrency)" class="text-xs text-[var(--gc-text-muted)]">
               Steam-pris: {{ formatSteamPrice(l.item.skin.steamPriceCents, l.item.skin.steamPriceCurrency) }}
             </p>

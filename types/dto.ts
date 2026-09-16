@@ -165,18 +165,20 @@ export interface MarketListingDTO {
   price: number
   feeRate: number
   sellerId: string
+  sellerUsername: string | null
   item: InventoryItemDTO
   listedAt: string
 }
 
 export function toMarketListingDTO(
-  listing: MarketListing & { inventoryItem: InventoryItem & { skinDefinition: SkinDefinition } },
+  listing: MarketListing & { inventoryItem: InventoryItem & { skinDefinition: SkinDefinition }; seller?: { username: string } },
 ): MarketListingDTO {
   return {
     id: listing.id,
     price: listing.price,
     feeRate: listing.feeRate,
     sellerId: listing.sellerId,
+    sellerUsername: listing.seller?.username ?? null,
     item: toInventoryItemDTO(listing.inventoryItem),
     listedAt: listing.listedAt.toISOString(),
   }
@@ -185,5 +187,16 @@ export function toMarketListingDTO(
 export interface PriceHistoryPointDTO {
   price: number
   soldAt: string
+}
+
+// --- Live feed ---
+
+export interface FeedEntryDTO {
+  id: string
+  username: string
+  skinName: string
+  rarity: string
+  caseName: string
+  createdAt: string
 }
 

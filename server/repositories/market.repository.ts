@@ -52,7 +52,7 @@ export const marketRepository = {
           ? { inventoryItem: { skinDefinition: { name: { contains: filter.search, mode: 'insensitive' } } } }
           : {}),
       },
-      include: { inventoryItem: { include: { skinDefinition: true } } },
+      include: { inventoryItem: { include: { skinDefinition: true } }, seller: { select: { username: true } } },
       orderBy: { listedAt: 'desc' },
       take: filter.take ?? 24,
       ...(filter.cursor ? { cursor: { id: filter.cursor }, skip: 1 } : {}),

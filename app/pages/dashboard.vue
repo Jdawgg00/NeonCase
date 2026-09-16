@@ -65,7 +65,7 @@ const TRANSACTION_LABELS: Record<string, string> = {
       <p v-if="claimState === 'error'" data-testid="claim-error" class="mt-2 text-sm text-rarity-epic">{{ claimError }}</p>
     </section>
 
-    <section>
+    <section class="mb-8">
       <h2 class="mb-3 font-display text-lg">Siste transaksjoner</h2>
       <ul class="divide-y divide-[var(--gc-steel-700)] rounded-[var(--gc-radius-md)] border border-[var(--gc-steel-700)]">
         <li
@@ -83,5 +83,7 @@ const TRANSACTION_LABELS: Record<string, string> = {
         </li>
       </ul>
     </section>
+
+    <LiveFeed />
   </main>
 </template>
