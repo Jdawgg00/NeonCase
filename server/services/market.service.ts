@@ -154,7 +154,9 @@ export const marketService = {
     if (item.ownerId !== input.sellerId) throw new NotOwnerError()
     if (item.status !== 'AVAILABLE') throw new ItemNotAvailableError()
 
-    const price = Math.floor(referenceValueFor(item.skinDefinition) * QUICK_SELL_RATE)
+    // Never 0: applyBalanceDeltaTx rejects a zero-amount transaction outright
+    // (throws, surfaced as a 500), and floor(1 * 0.8) already rounds down to 0.
+    const price = Math.max(1, Math.floor(referenceValueFor(item.skinDefinition) * QUICK_SELL_RATE))
 
     const { transaction } = await withOptimisticRetry(() =>
       prisma.$transaction(async (tx) => {
