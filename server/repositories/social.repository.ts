@@ -80,6 +80,28 @@ export const socialRepository = {
       .slice(0, take)
   },
 
+  /** Total kr each user has received via an admin wallet-adjustment credit — just for fun. */
+  async topAdminGifted(excludeRoles: string[], take = 20, db: Db = prisma) {
+    const grouped = await db.walletTransaction.groupBy({
+      by: ['walletId'],
+      where: { type: 'ADMIN_ADJUSTMENT_CREDIT' },
+      _sum: { amount: true },
+    })
+    if (grouped.length === 0) return []
+
+    const wallets = await db.wallet.findMany({
+      where: { id: { in: grouped.map((g) => g.walletId) }, user: { role: { notIn: excludeRoles as never[] } } },
+      select: { id: true, user: { select: { username: true } } },
+    })
+    const usernameByWalletId = new Map(wallets.map((w) => [w.id, w.user.username]))
+
+    return grouped
+      .filter((g) => usernameByWalletId.has(g.walletId))
+      .map((g) => ({ username: usernameByWalletId.get(g.walletId)!, amount: g._sum.amount ?? 0 }))
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, take)
+  },
+
   topCaseOpenings(excludeRoles: string[], take = 20, db: Db = prisma) {
     return db.user.findMany({
       where: { role: { notIn: excludeRoles as never[] } },

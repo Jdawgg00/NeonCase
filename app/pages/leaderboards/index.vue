@@ -22,6 +22,7 @@ interface LeaderboardsResponse {
   caseOpenings: { userId: string; username: string; count: number }[]
   todaysBestByRarity: DropHighlight[]
   goldDrops: GoldDrop[]
+  adminGifted: { username: string; amount: number }[]
 }
 
 const { data } = await useFetch<LeaderboardsResponse>('/api/leaderboards')
@@ -79,6 +80,16 @@ const { data } = await useFetch<LeaderboardsResponse>('/api/leaderboards')
           <li v-for="(row, i) in data?.caseOpenings" :key="row.userId" class="flex justify-between px-4 py-2 text-sm">
             <span>{{ i + 1 }}. {{ row.username }}</span>
             <span class="text-rarity-uncommon">{{ row.count }}</span>
+          </li>
+        </ol>
+      </section>
+
+      <section v-if="data?.adminGifted?.length">
+        <h2 class="mb-2 font-display text-lg">💸 Mest bortskjemt av admin</h2>
+        <ol class="divide-y divide-[var(--gc-steel-700)] rounded-[var(--gc-radius-md)] border border-[var(--gc-steel-700)]">
+          <li v-for="(row, i) in data.adminGifted" :key="row.username" class="flex justify-between px-4 py-2 text-sm">
+            <span>{{ i + 1 }}. {{ row.username }}</span>
+            <span class="text-rarity-uncommon">{{ formatKr(row.amount) }}</span>
           </li>
         </ol>
       </section>

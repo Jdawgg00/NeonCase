@@ -108,16 +108,18 @@ export const socialService = {
   },
 
   async leaderboards() {
-    const [byValue, byOpenings, bestByRarity, goldDrops] = await Promise.all([
+    const [byValue, byOpenings, bestByRarity, goldDrops, adminGifted] = await Promise.all([
       socialRepository.topInventoryValue(LEADERBOARD_EXCLUDED_ROLES),
       socialRepository.topCaseOpenings(LEADERBOARD_EXCLUDED_ROLES),
       socialRepository.todaysBestByRarity(LEADERBOARD_EXCLUDED_ROLES),
       socialRepository.allSpecialDrops(LEADERBOARD_EXCLUDED_ROLES),
+      socialRepository.topAdminGifted(LEADERBOARD_EXCLUDED_ROLES),
     ])
     return {
       inventoryValue: byValue,
       caseOpenings: byOpenings.map((u) => ({ userId: u.id, username: u.username, count: u._count.caseOpenings })),
       todaysBestByRarity: bestByRarity.map((d) => ({ ...d, createdAt: d.createdAt.toISOString() })),
+      adminGifted,
       goldDrops: goldDrops.map((o) => ({
         id: o.id,
         username: o.user.username,
