@@ -278,6 +278,7 @@ const inspecting = ref(false)
       :name="result.item.skin.name"
       :float-value="result.item.floatValue"
       :wear="result.item.wear"
+      :phase="result.item.phase"
       :steam-price-cents="result.item.skin.steamPriceCents"
       :steam-price-currency="result.item.skin.steamPriceCurrency"
       :steam-volume="result.item.skin.steamVolume"

@@ -112,6 +112,7 @@ async function submitListing() {
         <p class="line-clamp-1 text-sm text-[var(--gc-text)]">{{ item.skin.name }}</p>
         <RarityBadge :rarity="item.skin.rarity" size="sm" />
         <p class="text-xs text-[var(--gc-text-muted)]">Float {{ item.floatValue.toFixed(4) }} · {{ item.wear }}</p>
+        <p v-if="item.phase" class="text-xs text-rarity-special">{{ item.phase }}</p>
         <p class="text-xs text-[var(--gc-text-muted)]">
           Steam-pris: {{ displaySteamPrice(item.skin.steamPriceCents, item.skin.steamPriceCurrency) }}
         </p>
@@ -205,6 +206,7 @@ async function submitListing() {
       :name="inspectItem.skin.name"
       :float-value="inspectItem.floatValue"
       :wear="inspectItem.wear"
+      :phase="inspectItem.phase"
       :steam-price-cents="inspectItem.skin.steamPriceCents"
       :steam-price-currency="inspectItem.skin.steamPriceCurrency"
       :steam-volume="inspectItem.skin.steamVolume"

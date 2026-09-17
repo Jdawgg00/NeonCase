@@ -1,4 +1,5 @@
 import type { CaseDefinition, CaseDrop, CaseOpening, InventoryItem, MarketListing, SkinDefinition, WalletTransaction } from '@prisma/client'
+import { dopplerPhaseFor } from './doppler-phase'
 
 export interface WalletDTO {
   balance: number
@@ -115,6 +116,8 @@ export interface InventoryItemDTO {
   floatValue: number
   wear: string
   patternSeed: number
+  /** Doppler-family phase (Phase 1-4, Ruby, Sapphire, Black Pearl, Emerald) — null for every other skin. */
+  phase: string | null
   specialVariant: string | null
   favorited: boolean
   status: string
@@ -129,6 +132,7 @@ export function toInventoryItemDTO(item: InventoryItem & { skinDefinition: SkinD
     floatValue: item.floatValue,
     wear: item.wear,
     patternSeed: item.patternSeed,
+    phase: dopplerPhaseFor(item.skinDefinition.name, item.patternSeed),
     specialVariant: item.specialVariant,
     favorited: item.favorited,
     status: item.status,

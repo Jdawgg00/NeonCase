@@ -13,11 +13,11 @@
   --gc-text: #e7e9ee;
   --gc-text-muted: #8a90a0;
 
-  /* Rarity */
+  /* Rarity: grey / blue / purple / red / gold */
   --gc-common: #6b7280;
-  --gc-uncommon: #34d5c9;
+  --gc-uncommon: #4b69ff;
   --gc-rare: #8b6bff;
-  --gc-epic: #e84fa0;
+  --gc-epic: #eb4b4b;
   --gc-special: #f0b429;
 
   /* Radii / focus */

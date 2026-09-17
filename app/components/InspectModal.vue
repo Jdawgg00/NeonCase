@@ -7,6 +7,7 @@ const props = defineProps<{
   seed: string | number
   floatValue?: number
   wear?: string
+  phase?: string | null
   steamPriceCents?: number | null
   steamPriceCurrency?: string | null
   steamVolume?: number | null
@@ -93,6 +94,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
       <p v-if="floatValue !== undefined" class="mt-3 text-sm text-[var(--gc-text-muted)]">
         Float {{ floatValue.toFixed(4) }} <span v-if="wear">· {{ wear }}</span>
       </p>
+      <p v-if="phase" class="text-sm text-rarity-special">{{ phase }}</p>
       <p class="mt-1 text-sm text-[var(--gc-text)]">
         Steam-pris: {{ displaySteamPrice(steamPriceCents ?? null, steamPriceCurrency ?? null) }}
         <span v-if="steamVolume" class="text-[var(--gc-text-muted)]">· {{ steamVolume.toLocaleString('nb-NO') }} solgt nylig</span>

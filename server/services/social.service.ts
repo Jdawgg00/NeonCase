@@ -1,6 +1,7 @@
 import { prisma } from '~~/server/utils/prisma'
 import { socialRepository } from '~~/server/repositories/social.repository'
 import { inventoryRepository } from '~~/server/repositories/inventory.repository'
+import { dopplerPhaseFor } from '~~/types/doppler-phase'
 
 // Admin/test/moderator accounts never appear on leaderboards — spesifikasjonen
 // explicitly requires this so internal seed/test accounts can't top the board.
@@ -107,21 +108,21 @@ export const socialService = {
   },
 
   async leaderboards() {
-    const [byValue, byOpenings, todaysDrops, goldDrops] = await Promise.all([
+    const [byValue, byOpenings, bestByRarity, goldDrops] = await Promise.all([
       socialRepository.topInventoryValue(LEADERBOARD_EXCLUDED_ROLES),
       socialRepository.topCaseOpenings(LEADERBOARD_EXCLUDED_ROLES),
-      socialRepository.todaysExtremeDrops(LEADERBOARD_EXCLUDED_ROLES),
+      socialRepository.todaysBestByRarity(LEADERBOARD_EXCLUDED_ROLES),
       socialRepository.allSpecialDrops(LEADERBOARD_EXCLUDED_ROLES),
     ])
     return {
       inventoryValue: byValue,
       caseOpenings: byOpenings.map((u) => ({ userId: u.id, username: u.username, count: u._count.caseOpenings })),
-      todaysBestDrop: todaysDrops.best ? { ...todaysDrops.best, createdAt: todaysDrops.best.createdAt.toISOString() } : null,
-      todaysWorstDrop: todaysDrops.worst ? { ...todaysDrops.worst, createdAt: todaysDrops.worst.createdAt.toISOString() } : null,
+      todaysBestByRarity: bestByRarity.map((d) => ({ ...d, createdAt: d.createdAt.toISOString() })),
       goldDrops: goldDrops.map((o) => ({
         id: o.id,
         username: o.user.username,
         skinName: o.inventoryItem.skinDefinition.name,
+        phase: dopplerPhaseFor(o.inventoryItem.skinDefinition.name, o.inventoryItem.patternSeed),
         caseName: o.case.name,
         createdAt: o.createdAt.toISOString(),
       })),

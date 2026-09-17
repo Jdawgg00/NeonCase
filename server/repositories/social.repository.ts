@@ -103,13 +103,19 @@ export const socialRepository = {
         createdAt: true,
         user: { select: { username: true } },
         case: { select: { name: true } },
-        inventoryItem: { select: { skinDefinition: { select: { name: true } } } },
+        inventoryItem: { select: { patternSeed: true, skinDefinition: { select: { name: true } } } },
       },
     })
   },
 
-  /** Best/worst single drop (by real Steam value, falling back to a small per-rarity guess) among today's case openings. */
-  async todaysExtremeDrops(excludeRoles: string[], db: Db = prisma) {
+  /**
+   * Best drop today, per rarity tier — comparing a gold's small per-rarity
+   * fallback value against a common skin's real (possibly much higher)
+   * Steam price is an apples-to-oranges comparison that let a real 300 kr
+   * common beat a knife every time. One winner per tier instead, so a gold
+   * always shows up as *a* best-of-day even with no Steam price yet.
+   */
+  async todaysBestByRarity(excludeRoles: string[], db: Db = prisma) {
     const todayStart = new Date()
     todayStart.setHours(0, 0, 0, 0)
 
@@ -124,8 +130,6 @@ export const socialRepository = {
       },
     })
 
-    if (openings.length === 0) return { best: null, worst: null }
-
     const toDto = (o: (typeof openings)[number]) => ({
       username: o.user.username,
       skinName: o.inventoryItem.skinDefinition.name,
@@ -135,10 +139,16 @@ export const socialRepository = {
       createdAt: o.createdAt,
     })
 
-    const sorted = [...openings].sort(
-      (a, b) => referenceValue(b.inventoryItem.skinDefinition) - referenceValue(a.inventoryItem.skinDefinition),
-    )
-    return { best: toDto(sorted[0]!), worst: toDto(sorted[sorted.length - 1]!) }
+    const bestByRarity = new Map<string, (typeof openings)[number]>()
+    for (const o of openings) {
+      const rarity = o.inventoryItem.skinDefinition.rarity
+      const current = bestByRarity.get(rarity)
+      if (!current || referenceValue(o.inventoryItem.skinDefinition) > referenceValue(current.inventoryItem.skinDefinition)) {
+        bestByRarity.set(rarity, o)
+      }
+    }
+    const RARITY_ORDER = ['SPECIAL', 'EPIC', 'RARE', 'UNCOMMON', 'COMMON']
+    return RARITY_ORDER.filter((r) => bestByRarity.has(r)).map((r) => toDto(bestByRarity.get(r)!))
   },
 
   // --- Notifications ---

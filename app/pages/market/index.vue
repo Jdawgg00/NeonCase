@@ -175,6 +175,7 @@ useMarketEvents((event: MarketEvent) => {
       :name="inspectListing.item.skin.name"
       :float-value="inspectListing.item.floatValue"
       :wear="inspectListing.item.wear"
+      :phase="inspectListing.item.phase"
       :steam-price-cents="inspectListing.item.skin.steamPriceCents"
       :steam-price-currency="inspectListing.item.skin.steamPriceCurrency"
       :steam-volume="inspectListing.item.skin.steamVolume"

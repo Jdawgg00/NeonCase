@@ -13,14 +13,14 @@ interface GoldDrop {
   id: string
   username: string
   skinName: string
+  phase: string | null
   caseName: string
   createdAt: string
 }
 interface LeaderboardsResponse {
   inventoryValue: { userId: string; username: string; value: number }[]
   caseOpenings: { userId: string; username: string; count: number }[]
-  todaysBestDrop: DropHighlight | null
-  todaysWorstDrop: DropHighlight | null
+  todaysBestByRarity: DropHighlight[]
   goldDrops: GoldDrop[]
 }
 
@@ -31,26 +31,20 @@ const { data } = await useFetch<LeaderboardsResponse>('/api/leaderboards')
   <main class="mx-auto max-w-3xl px-6 py-12">
     <h1 class="mb-6 font-display text-2xl">Leaderboards</h1>
 
-    <div v-if="data?.todaysBestDrop || data?.todaysWorstDrop" class="mb-8 grid gap-4 sm:grid-cols-2">
-      <div v-if="data?.todaysBestDrop" class="rounded-[var(--gc-radius-md)] border border-[var(--gc-steel-700)] bg-graphite-900 p-4">
-        <p class="mb-1 text-xs uppercase tracking-wide text-[var(--gc-text-muted)]">Dagens beste drop</p>
-        <p>
-          <span class="text-[var(--gc-text)]">{{ data.todaysBestDrop.username }}</span>
-          <span class="text-[var(--gc-text-muted)]"> fikk </span>
-          <span :class="`rarity-${data.todaysBestDrop.rarity.toLowerCase()}`">{{ data.todaysBestDrop.skinName }}</span>
-        </p>
-        <p class="font-display text-rarity-uncommon">{{ formatKr(data.todaysBestDrop.value) }}</p>
+    <section v-if="data?.todaysBestByRarity?.length" class="mb-8">
+      <h2 class="mb-2 font-display text-lg">Dagens beste drop per kategori</h2>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <div v-for="drop in data.todaysBestByRarity" :key="drop.rarity" class="rounded-[var(--gc-radius-md)] border border-[var(--gc-steel-700)] bg-graphite-900 p-4">
+          <p class="mb-1 text-xs uppercase tracking-wide text-[var(--gc-text-muted)]">{{ drop.rarity }}</p>
+          <p>
+            <span class="text-[var(--gc-text)]">{{ drop.username }}</span>
+            <span class="text-[var(--gc-text-muted)]"> fikk </span>
+            <span :class="`rarity-${drop.rarity.toLowerCase()}`">{{ drop.skinName }}</span>
+          </p>
+          <p class="font-display" :class="`rarity-${drop.rarity.toLowerCase()}`">{{ formatKr(drop.value) }}</p>
+        </div>
       </div>
-      <div v-if="data?.todaysWorstDrop" class="rounded-[var(--gc-radius-md)] border border-[var(--gc-steel-700)] bg-graphite-900 p-4">
-        <p class="mb-1 text-xs uppercase tracking-wide text-[var(--gc-text-muted)]">Dagens verste drop</p>
-        <p>
-          <span class="text-[var(--gc-text)]">{{ data.todaysWorstDrop.username }}</span>
-          <span class="text-[var(--gc-text-muted)]"> fikk </span>
-          <span :class="`rarity-${data.todaysWorstDrop.rarity.toLowerCase()}`">{{ data.todaysWorstDrop.skinName }}</span>
-        </p>
-        <p class="font-display text-rarity-epic">{{ formatKr(data.todaysWorstDrop.value) }}</p>
-      </div>
-    </div>
+    </section>
 
     <section v-if="data?.goldDrops?.length" class="mb-8">
       <h2 class="mb-2 font-display text-lg">🏆 Gullfunn — hall of fame</h2>
@@ -60,6 +54,7 @@ const { data } = await useFetch<LeaderboardsResponse>('/api/leaderboards')
             <span class="text-[var(--gc-text)]">{{ drop.username }}</span>
             <span class="text-[var(--gc-text-muted)]"> fikk </span>
             <span class="rarity-special font-display">{{ drop.skinName }}</span>
+            <span v-if="drop.phase" class="text-rarity-special"> ({{ drop.phase }})</span>
             <span class="text-[var(--gc-text-muted)]"> fra {{ drop.caseName }}</span>
           </span>
           <span class="flex-shrink-0 text-xs text-[var(--gc-text-muted)]">{{ new Date(drop.createdAt).toLocaleDateString('nb-NO') }}</span>
